@@ -4,7 +4,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import scipy.integrate
-import time
 
 COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
 AGE_RANGES = ['0-4', '5-9', '10-19', '20+']
@@ -18,6 +17,14 @@ DURATION_OF_INFECTION = 14
 # Transmission rates from infected to susceptible compartments, by age range, and under various assumptions.
 # For example, the 1,2 entry denotes the transmission rate (contact rate * probability of transmission) from the 
 # '5-9' to the '0-4' cohort. 
+
+# Last TWO cohorts removed from general population (no transmission)
+beta_last_two_cohorts_out = np.array([
+	[0.3, 0.3, 0.0, 0.0],
+	[0.3, 0.3, 0.0, 0.0],
+	[0.0, 0.0, 0.0, 0.0],
+	[0.0, 0.0, 0.0, 0.0]
+])
 
 # Last cohort removed from general population (no transmission)
 beta_last_cohort_out = np.array([
@@ -169,7 +176,8 @@ if show_option == "Infected":
 						'y': {
 							'field': 'pop', 
 							'type': 'quantitative',
-							'axis': {'title': ""}
+							'axis': {'title': ""},
+							'scale': {'domain': [0.0, 0.5]}
 						}
 					}
 				}
@@ -195,7 +203,8 @@ elif show_option == "Died or recovered":
 						'y': {
 							'field': 'pop', 
 							'type': 'quantitative',
-							'axis': {'title': ""}
+							'axis': {'title': ""},
+							'scale': {'domain': [0.0, 1.0]}
 						}
 					}
 				}
