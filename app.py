@@ -19,17 +19,21 @@ DURATION_OF_INFECTION = 14
 # For example, the 1,2 entry denotes the transmission rate (contact rate * probability of transmission) from the 
 # '5-9' to the '0-4' cohort. 
 
-# Constant across age:
-beta_const = np.array([[.3, .3, .3, 0],
-                       [.3, .3, .3, 0],
-                       [.3, .3, .3, 0],
-                       [0, 0, 0, 0]])
+# Last cohort removed from general population (no transmission)
+beta_last_cohort_out = np.array([
+	[0.3, 0.3, 0.3, 0.0],
+	[0.3, 0.3, 0.3, 0.0],
+	[0.3, 0.3, 0.3, 0.0],
+	[0.0, 0.0, 0.0, 0.0]
+])
 
-# Other transmissivity cases to follow...
-beta_no_school = np.array([[.3, .3, .3, .3],
-                       [.3, .3, .3, .3],
-                       [.3, .3, .3, .3],
-                       [.3, .3, .3, .3]])
+# All cohorts in
+beta_all_in = np.array([
+	[0.3, 0.3, 0.3, 0.3],
+	[0.3, 0.3, 0.3, 0.3],
+	[0.3, 0.3, 0.3, 0.3],
+	[0.3, 0.3, 0.3, 0.3]
+])
 
 # Initial compartment populations
 initial_infected = .0004
@@ -144,7 +148,7 @@ values = st.slider(
 	0, 180, (100, 145)
 )
 
-betas = [beta_const, beta_no_school, beta_const]
+betas = [beta_last_cohort_out, beta_all_in, beta_last_cohort_out]
 df = SEIRModel(alpha=3, betas=betas, epoch_end_times=(values[0], values[1], 180)).solve_to_dataframe(pop_0.flatten())
 plot_group = df[df["Group"] == show_option]
 
