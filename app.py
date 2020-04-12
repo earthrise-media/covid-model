@@ -1,6 +1,4 @@
 import streamlit as st
-# To make things easier later, we're also importing numpy and pandas for
-# working with sample data.
 import numpy as np
 import pandas as pd
 import scipy.integrate
@@ -14,33 +12,79 @@ POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
 INCUBATION_PERIOD = 3
 DURATION_OF_INFECTION = 14
 
-# Transmission rates from infected to susceptible compartments, by age range, and under various assumptions.
-# For example, the 1,2 entry denotes the transmission rate (contact rate * probability of transmission) from the 
-# '5-9' to the '0-4' cohort. 
 
-# Last TWO cohorts removed from general population (no transmission)
-beta_last_two_cohorts_out = np.array([
-	[0.3, 0.3, 0.0, 0.0],
-	[0.3, 0.3, 0.0, 0.0],
-	[0.0, 0.0, 0.0, 0.0],
-	[0.0, 0.0, 0.0, 0.0]
-])
+def model_input(cohort_ranges):
+	"""
+	Function to calculuate transition matrices and to enumerate their end
+	period for four cohorts.
 
-# Last cohort removed from general population (no transmission)
-beta_last_cohort_out = np.array([
-	[0.3, 0.3, 0.3, 0.0],
-	[0.3, 0.3, 0.3, 0.0],
-	[0.3, 0.3, 0.3, 0.0],
-	[0.0, 0.0, 0.0, 0.0]
-])
+	Accepts a list of day range tuples for each cohort's time in general
+	population
 
-# All cohorts in
-beta_all_in = np.array([
-	[0.3, 0.3, 0.3, 0.3],
-	[0.3, 0.3, 0.3, 0.3],
-	[0.3, 0.3, 0.3, 0.3],
-	[0.3, 0.3, 0.3, 0.3]
-])
+	Returns a list of two lists for input into SEIRModel():
+		1. A list of the transition matrices
+		2. A list of epoch end times
+
+	"""
+
+	# The transition matrix for when ALL four cohorts are in general population
+	genpop_matrix = np.array([
+		[0.3, 0.3, 0.3, 0.3],
+		[0.3, 0.3, 0.3, 0.3],
+		[0.3, 0.3, 0.3, 0.3],
+		[0.3, 0.3, 0.3, 0.3]
+	])
+
+	# Partition total range in to it's unique end periods
+	flat_dates = [v for sublist in cohort_ranges for v in sublist]
+
+	# Unique and sorted list of epoch begin and end days.
+	epoch_delims = sorted(list(dict.fromkeys(flat_dates)))
+
+	def _tuplize(lst):
+		# create a sequence of tuples from a list
+		# e.g., tuplize([0, 1, 2, 3]) -> [[0, 1], [1, 2], [2, 3]]
+		for i in range(0, len(lst)):
+		  	val = lst[i:i+2]
+		  	if len(val) == 2:
+		  		yield val
+
+	# Delineates the ranges for different transition matrices required.  The
+	# length of this list is equal to the length of the final result.
+	epoch_tuples = list(_tuplize(epoch_delims))
+
+	# Custom check to deal with range sliders inclusive of both bounds and
+	# zero-indexed python lists
+	def _is_removed(cohort_range, epoch_tuple):
+		cs = set(range(*cohort_range))
+		es = set(range(*epoch_tuple))
+		if len(cs.intersection(es)) <= 1:
+			return True
+		else:
+			return False
+
+	transition_matrices = []
+	# iteratively alter the genpop matrix by checking if a certain population
+	# should be removed for each time partition
+	for j in range(len(epoch_tuples)): 
+
+		# reset general popultation matrix for each epoch, and set transmission to
+		# zero if the cohort has been removed
+		res_mat = genpop_matrix.copy()
+
+		for i in range(len(cohort_ranges)):
+			if _is_removed(cohort_ranges[i], epoch_tuples[j]):
+				res_mat[i, :] = 0
+				res_mat[:, i] = 0
+
+
+		transition_matrices.append(res_mat)
+
+	# Remove the first delimiter, which is a start day (not an end day)
+	epoch_ends = epoch_delims[1:]
+
+	return [transition_matrices, epoch_ends]
+
 
 # Initial compartment populations
 initial_infected = .0004
@@ -80,9 +124,7 @@ df = pd.DataFrame(
 	pop_0, 
 	index=AGE_RANGES
 )
-
 df.columns = COMPARTMENTS
-
 st.write(df)
 
 ## RUN MODEL 
@@ -150,13 +192,41 @@ show_option = st.sidebar.selectbox(
 )
 
 
-values = st.slider(
-	'Introduction period of [20+] cohort:',
-	0, 180, (100, 145)
+# Create a series of sliders for the time range of each cohort
+# TODO: There is probably a more elegant way to do this.
+first_range = st.slider(
+	'Period of mixing for [%s] cohort:' % (AGE_RANGES[0]),
+	0, 180, (0, 180)
 )
 
-betas = [beta_last_cohort_out, beta_all_in, beta_last_cohort_out]
-df = SEIRModel(alpha=3, betas=betas, epoch_end_times=(values[0], values[1], 180)).solve_to_dataframe(pop_0.flatten())
+second_range = st.slider(
+	'Period of mixing for [%s] cohort:' % (AGE_RANGES[1]),
+	0, 180, (30, 180)
+)
+
+third_range = st.slider(
+	'Period of mixing for [%s] cohort:' % (AGE_RANGES[2]),
+	0, 180, (70, 100)
+)
+
+fourth_range = st.slider(
+	'Period of mixing for [%s] cohort:' % (AGE_RANGES[3]),
+	0, 180, (90, 180)
+)
+
+cohort_ranges = [
+	first_range,
+	second_range,
+	third_range,
+	fourth_range
+]
+
+
+# Generate the beta matrices and epoch ends:
+betas, epoch_end_times = model_input(cohort_ranges)
+
+
+df = SEIRModel(alpha=3, betas=betas, epoch_end_times=epoch_end_times).solve_to_dataframe(pop_0.flatten())
 plot_group = df[df["Group"] == show_option]
 
 if show_option == "Infected":
@@ -171,7 +241,8 @@ if show_option == "Infected":
 						'x': {
 							'field': 'days', 
 							'type': 'quantitative',
-							'axis': {'title': ""}
+							'axis': {'title': ""},
+							'scale': {'domain': [0, 180]}
 						},
 						'y': {
 							'field': 'pop', 
@@ -204,7 +275,8 @@ elif show_option == "Died or recovered":
 							'field': 'pop', 
 							'type': 'quantitative',
 							'axis': {'title': ""},
-							'scale': {'domain': [0.0, 1.0]}
+							'scale': {'domain': [0.0, 1.0]},
+							'scale': {'domain': [0, 180]}
 						}
 					}
 				}
