@@ -189,14 +189,7 @@ class SEIRModel(object):
         return df
 
 # Sidebar
-show_option = st.sidebar.selectbox(
-    'Population to show',
-    [
-    	"Infected", 
-    	"Died or recovered"
-    ]
-)
-
+show_option = st.sidebar.selectbox('Population to show', ["All"] + COMPARTMENTS)
 
 # Create a series of sliders for the time range of each cohort
 # TODO: There is probably a more elegant way to do this.
@@ -231,62 +224,46 @@ cohort_ranges = [
 # Generate the beta matrices and epoch ends:
 betas, epoch_end_times = model_input(cohort_ranges)
 
-
 df = SEIRModel(alpha=3, betas=betas, epoch_end_times=epoch_end_times).solve_to_dataframe(pop_0.flatten())
-plot_group = df[df["Group"] == show_option]
 
-if show_option == "Infected":
+colors = dict(zip(COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2"]))
+
+def _vega_default_spec(color=None):
+    spec={
+        'mark': {'type': 'line', 'tooltip': True},
+        'encoding': {
+            'x': {
+                'field': 'days', 
+                'type': 'quantitative',
+                'axis': {'title': ""},
+                'scale': {'domain': [0, 180]}
+            },
+            'y': {
+                'field': 'pop', 
+                'type': 'quantitative',
+                'axis': {'title': ""},
+                'scale': {'domain': [0.0, 1.0]}
+            },
+        'color': {'field': 'Group', 'type': 'nominal'}
+        }
+    }
+    if color:
+        spec['encoding'].pop('color')
+        spec['mark'].update({'color': color})
+    return spec
+
+if show_option == "All":
+    st.subheader(show_option)
+    st.vega_lite_chart(
+        data=df,
+        spec=_vega_default_spec(),
+        use_container_width=True
+    )
+    
+elif show_option in COMPARTMENTS:
 	st.subheader(show_option)
 	st.vega_lite_chart(
-		plot_group, 
-		{
-			'layer': [
-				{
-					'mark': {'type': 'line', 'tooltip': True},
-					'encoding': {
-						'x': {
-							'field': 'days', 
-							'type': 'quantitative',
-							'axis': {'title': ""},
-							'scale': {'domain': [0, 180]}
-						},
-						'y': {
-							'field': 'pop', 
-							'type': 'quantitative',
-							'axis': {'title': ""},
-							'scale': {'domain': [0.0, 0.5]}
-						}
-					}
-				}
-			]
-		}, 
-		use_container_width=True
-	)
-
-elif show_option == "Died or recovered":
-
-	st.vega_lite_chart(
-		plot_group, 
-		{
-			'layer': [
-				{
-					'mark': {'type': 'line', 'tooltip': True},
-					'encoding': {
-						'x': {
-							'field': 'days', 
-							'type': 'quantitative',
-							'axis': {'title': ""}
-						},
-						'y': {
-							'field': 'pop', 
-							'type': 'quantitative',
-							'axis': {'title': ""},
-							'scale': {'domain': [0.0, 1.0]},
-							'scale': {'domain': [0, 180]}
-						}
-					}
-				}
-			]
-		}, 
+		data=df[df["Group"] == show_option],
+        spec=_vega_default_spec(color=colors[show_option]),
 		use_container_width=True
 	)
