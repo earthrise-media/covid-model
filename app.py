@@ -35,8 +35,9 @@ def model_input(cohort_ranges):
 		[0.1, 0.1, 0.1, 0.1]
 	])
 
-	# Partition total range in to it's unique end periods
+	# Partition total range in to its unique end periods
 	flat_dates = [v for sublist in cohort_ranges for v in sublist]
+	flat_dates = set(flat_dates + [0, 180])
 
 	# Unique and sorted list of epoch begin and end days.
 	epoch_delims = sorted(list(dict.fromkeys(flat_dates)))
