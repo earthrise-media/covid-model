@@ -29,10 +29,10 @@ def model_input(cohort_ranges):
 
 	# The transition matrix for when ALL four cohorts are in general population
 	genpop_matrix = np.array([
-		[0.3, 0.3, 0.3, 0.3],
-		[0.3, 0.3, 0.3, 0.3],
-		[0.3, 0.3, 0.3, 0.3],
-		[0.3, 0.3, 0.3, 0.3]
+		[0.1, 0.1, 0.1, 0.1],
+		[0.1, 0.1, 0.1, 0.1],
+		[0.1, 0.1, 0.1, 0.1],
+		[0.1, 0.1, 0.1, 0.1]
 	])
 
 	# Partition total range in to it's unique end periods
@@ -96,7 +96,7 @@ st.title('Staged reintroduction of age cohorts')
 st.write(
 	"This model estimates the impact of re-introducing age-defined cohorts" \
 	"back into general population. The model supports any number of cohorts, " \
-	"but the interaction parameters increase exponentially. The complexity may" \
+	"but the interaction parameters increase exponentially. The complexity may " \
 	"be valuable; and the parameters are empirically derived. This is not a " \
 	"simulation. Rather, the output is the result from a set of differential equations" \
 	" -- a multidimensional generalization of the standard SEIR compartmental model."
@@ -104,15 +104,21 @@ st.write(
 
 st.latex(r'''
 	\begin{array}{lll}
-		\frac{dS}{dt} &=& -\frac{\beta I S}{N} \\
+		\frac{dS_a}{dt} &=& -S_a\; \sum_b \beta_{ab}(t) I_b/ N_b \\
 		\\
-		\frac{dI}{dt} &=& \frac{\beta I S}{N} - \gamma I\\
+		\frac{dE_a}{dt} &=& S_a\; \sum_b \beta_{ab}(t) I_b/ N_b - \alpha E_a\\
 		\\
-		\frac{dR}{dt} &=& \gamma I \\
+		\frac{dI_a}{dt} &=& \alpha E_a - \gamma I_a\\
+		\\
+		\frac{dR_a}{dt} &=& \gamma I_a \\
 
 	\end{array}{}
 	''')
 
+st.write("The subscripts (a,b) index the age cohorts, while "
+         "alpha, beta, and gamma are the inverse incubation period, "
+         "the transmissibility between age cohorts, and the inverse duration "
+         "of infection, respectively.")  
 
 ## DISPLAY INITIAL CONDITIONS
 st.write(
@@ -160,8 +166,8 @@ class SEIRModel(object):
         dy = np.zeros((self.N_ages, self.N_compartments))
         beta = self._beta(t)
         for a in range(self.N_ages):
-            dy[a,self.s] = -y[a,self.s] * np.sum([beta[a,b] * y[b,self.i] for b in range(self.N_ages)])
-            dy[a,self.e] = y[a,self.s] * np.sum([beta[a,b] * y[b,self.i] for b in range(self.N_ages)]) - self.alpha * y[a, self.e]
+            dy[a,self.s] = -y[a,self.s] * np.sum([beta[a,b] * y[b,self.i] / np.sum(y[b,:]) for b in range(self.N_ages)])
+            dy[a,self.e] = y[a,self.s] * np.sum([beta[a,b] * y[b,self.i] / np.sum(y[b,:]) for b in range(self.N_ages)]) - self.alpha * y[a, self.e]
             dy[a,self.i] = self.alpha * y[a, self.e] - self.gamma * y[a, self.i]
             dy[a,self.r] = self.gamma * y[a, self.i]
         return dy.flatten()
