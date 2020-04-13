@@ -5,10 +5,10 @@ import scipy.integrate
 
 COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
 AGE_RANGES = ['0-4', '5-9', '10-19', '20+']
-ROUGH_2017_POPULATION = [32., 28., 44., 88.]  # in millions, per Wikipedia (to check)
+ROUGH_2017_POPULATION = [32., 28., 44., 88.]  # in millions, per Wikipedia 
 POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
 
-# Initial model parameters:
+# Fixed model parameters:
 INCUBATION_PERIOD = 3
 DURATION_OF_INFECTION = 14
 
@@ -225,7 +225,7 @@ cohort_ranges = [
 # Generate the beta matrices and epoch ends:
 betas, epoch_end_times = model_input(cohort_ranges)
 
-df = SEIRModel(alpha=3, betas=betas, epoch_end_times=epoch_end_times).solve_to_dataframe(pop_0.flatten())
+df = SEIRModel(betas=betas, epoch_end_times=epoch_end_times).solve_to_dataframe(pop_0.flatten())
 
 colors = dict(zip(COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2"]))
 
