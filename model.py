@@ -33,8 +33,20 @@ Furthermore, the matrix beta varies with time.
 As currently deployed, the app allows a given cohort's entries to beta to
 be a constant value or zero, e.g. beta_a2 = BETA_CONST or beta_a2 = 0 for
 all a, meaning that there is or is not transmission between the 2
-cohort and any others. Of course that leaves considerable room for more
-nuanced modeling. 
+cohort and any others. 
+
+In the case that the 2 cohort (indexing from 0) is not mixing but all others 
+are, and BETA_CONST=.2, 
+
+beta = np.array([[0.2, 0.2, 0.0, 0.2],
+                 [0.2, 0.2, 0.0, 0.2],
+                 [0.0, 0.0, 0.0, 0.0],
+                 [0.2, 0.2, 0.0, 0.2]])
+
+Of course this restricted use of the transmission matrix leaves considerable 
+room for more nuanced modeling.
+
+
 
 """
 
