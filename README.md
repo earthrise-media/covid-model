@@ -3,36 +3,31 @@ Compartmental model with age cohorts
 
 ## setup
 
-The web app relies on [Python 3](https://www.python.org/downloads) and [Streamlit](https://www.streamlit.io).
+The web app is built with [Streamlit](https://www.streamlit.io) and deployed to [Heroku](https://www.heroku.com/) using a [Docker](https://www.docker.com/) container.
+
+Build and run the container from within the top-level project directory:
 
 ```bash
-python3 -m venv env
-source env/bin/activate
-pip3 install -r requirements.txt
+docker build -f Dockerfile -t app:latest .
+docker run -p 8501:8501 app:latest
 ```
 
-When finished:
-
-```bash
-deactivate
-```
-
-## run
-
-You can either run the app locally or from the latest (or previous) GitHub commit, just to check things out quickly.  
-
-```
-streamlit run https://raw.githubusercontent.com/earthrise-media/covid-model/master/app.py
-```
-Or from within the local directory:
-```
-streamlit run app.py
-```
-The browser will open with the Streamlit app.
+Navigate to [localhost:8501](http://localhost:8501/) in your browser.
 
 ## developing
 There is an option in Streamlit to reload upon saving. The best setup that I've discovered so far is to run the code editor and browser in dual panes, fullscreen.
 
 ## deploy
 
-**TODO**
+Login to the Heroku CLI using the Earthrise Developer credentials:
+
+```
+heroku login
+```
+
+Then push and release the image to our 
+
+```
+heroku container:push web --app radiant-atoll-45380
+heroku container:release web --app radiant-atoll-45380
+```

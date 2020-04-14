@@ -1,6 +1,4 @@
-scipy==1.2.3
-streamlit==0.55.2
-numpy==1.16.6
-pandas==0.24.2
-vega-datasets==0.8.0
-vegascope==1.0.14
+scipy
+streamlit
+numpy
+pandas
