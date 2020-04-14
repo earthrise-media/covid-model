@@ -49,8 +49,8 @@ st.latex(eqnarray)
 
 text = """
 
-The subscripts (a,b) index the age cohorts, while alpha, beta, and gamma are
-the inverse incubation period, the transmissibility between age cohorts, and
+The subscripts (a,b) index the (age) cohorts, while alpha, beta, and gamma are
+the inverse incubation period, the transmissibility between cohorts, and
 the inverse duration of infection, respectively.
 
 """
@@ -59,13 +59,13 @@ st.write(text)
 
 ## DISPLAY INITIAL CONDITIONS
 st.write(
-	"Initial compartment population fractions " \
-	"(a row denotes compartments for one age range)."
+	"Initial compartment population fractions. " \
+	"A row denotes compartments for a single age cohort."
 )
 
 df = pd.DataFrame(
 	model.pop_0, 
-	index=model.AGE_RANGES
+	index=model.COHORTS
 )
 df.columns = model.COMPARTMENTS
 st.write(df)
@@ -82,22 +82,22 @@ show_option = st.sidebar.selectbox(
 # Create a series of sliders for the time range of each cohort
 # TODO: There is probably a more elegant way to do this.
 first_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.AGE_RANGES[0]),
+	'Period of mixing for [%s] cohort:' % (model.COHORTS[0]),
 	0, 180, (0, 180)
 )
 
 second_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.AGE_RANGES[1]),
+	'Period of mixing for [%s] cohort:' % (model.COHORTS[1]),
 	0, 180, (0, 180)
 )
 
 third_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.AGE_RANGES[2]),
+	'Period of mixing for [%s] cohort:' % (model.COHORTS[2]),
 	0, 180, (40, 180)
 )
 
 fourth_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.AGE_RANGES[3]),
+	'Period of mixing for [%s] cohort:' % (model.COHORTS[3]),
 	0, 180, (80, 180)
 )
 
