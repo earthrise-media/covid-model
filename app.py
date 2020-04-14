@@ -58,10 +58,15 @@ the inverse duration of infection, respectively.
 st.write(text)  
 
 ## DISPLAY INITIAL CONDITIONS
-st.write(
-	"Initial compartment population fractions. " \
-	"A row denotes compartments for a single age cohort."
-)
+
+text = """
+
+The table below represents the initial conditions at Day 0 for each age
+cohort.  We pulled the age distribution for the United States in 2017.
+
+"""
+
+st.write(text)
 
 df = pd.DataFrame(
 	model.pop_0, 
@@ -88,17 +93,17 @@ first_range = st.slider(
 
 second_range = st.slider(
 	'Period of mixing for [%s] cohort:' % (model.COHORTS[1]),
-	0, 180, (0, 180)
+	0, 180, (0, 150)
 )
 
 third_range = st.slider(
 	'Period of mixing for [%s] cohort:' % (model.COHORTS[2]),
-	0, 180, (40, 180)
+	0, 180, (52, 180)
 )
 
 fourth_range = st.slider(
 	'Period of mixing for [%s] cohort:' % (model.COHORTS[3]),
-	0, 180, (80, 180)
+	0, 180, (115, 180)
 )
 
 cohort_ranges = [
@@ -113,7 +118,7 @@ cohort_ranges = [
 betas, epoch_end_times = model.model_input(cohort_ranges)
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df = res.solve_to_dataframe(model.pop_0.flatten())
+df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
 
 
 colors = dict(zip(model.COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2"]))
@@ -169,7 +174,12 @@ elif show_option in model.COMPARTMENTS:
 		use_container_width=True
 	)
 
+st.dataframe(death_df.style.highlight_max(axis=1, color="#e39696"))
+
 text = """ 
+
+The parameter values are **especially** wrong. We just made up some numbers. These
+should be set from empirical evidence.
 
 Note that there are _a lot_ of free parameters.  It is possible to create
 basically any model outcome from the choice of these interdependent

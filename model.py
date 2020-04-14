@@ -73,6 +73,7 @@ INCUBATION_PERIOD = 3
 DURATION_OF_INFECTION = 14
 BETA_CONST = .2
 BETA_ALL_COHORTS_MIXING = BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
+DEATH_RATES_BY_COHORT = [0.01, 0.02, 0.04, 0.1]
 
 class SEIRModel(object):
     """Class to solve an age-structured SEIR Compartmental model.
@@ -145,11 +146,24 @@ class SEIRModel(object):
         """Solve and output a tidy dataframe."""
         t, y = self.solve(y0)
         y = y.reshape(self.N_cohorts, self.N_compartments, len(t))
-        y = np.sum(y, axis=0)
-        df = pd.DataFrame(dict({'days': t}, **dict(zip(self.compartments, y))))
+
+        # calculate the time series for the total population
+        aggregate_nums = np.sum(y, axis=0)
+        df = pd.DataFrame(dict({'days': t}, **dict(zip(self.compartments, aggregate_nums))))
         df = pd.melt(df, id_vars=['days'], var_name='Group', value_name='pop')
         df['Date(s) of intervention'] = str(self.epoch_end_times[:-1])
-        return df
+
+        # Calculate the aggregate deaths by cohort.  Position matters!!!  The
+        # "Died or recovered" compartment is in the final position. Then,
+        # also, collect the final number in the evolution, hence the dual "-1"
+        # indices.
+        final_died_or_recovered = [x[-1][-1] for x in y]
+        number_died_or_recovered = np.multiply(final_died_or_recovered, ROUGH_2017_POPULATION)
+        death_numbers = np.multiply(number_died_or_recovered, DEATH_RATES_BY_COHORT)
+
+        death_df = pd.DataFrame([death_numbers], columns = COHORTS, index=["Deaths (millions)"])
+        death_df["Total"] = sum(death_numbers)
+        return df, death_df
 
 
 def model_input(cohort_ranges):
