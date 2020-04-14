@@ -12,11 +12,11 @@ st.subheader(
 
 text = """ 
 
-This model is meant to be used as a heuristic to illustrate the effect of
-lifting NPIs for certain sub-populations. The numbers are not projections, but
-rather indications of the directional effects of stacked policies.  The
-authors of this model and visualization are _not_ epidemiologists.  At best,
-we are armchair epidemiologists &mdash; which is pretty bad.
+This model should be used as a heuristic to illustrate the effect of lifting
+NPIs for certain sub-populations. The numbers are not projections, but rather
+indications of the directional effects of stacked policies.  The authors of
+this model and visualization are _not_ epidemiologists.  At best, we are
+armchair epidemiologists &mdash; which is pretty bad.
 
 We extended a standard SEIR model to incorporate the interactions between
 cohorts, starting with four cohorts.  The cohorts are a partition of the 
@@ -76,7 +76,7 @@ st.write(df)
 # Sidebar
 show_option = st.sidebar.selectbox(
 	'Population to show', 
-	["Infected", "Died or Recovered", "Exposed", "Susceptible", "All"]
+	["Infected", "Died or recovered", "Exposed", "Susceptible", "All"]
 )
 
 # Create a series of sliders for the time range of each cohort
@@ -156,7 +156,7 @@ elif show_option == "Infected":
 		data=df[df["Group"] == show_option],
         spec=_vega_default_spec(
         	color=colors[show_option],
-        	scale=[0.0, 0.3]
+        	scale=[0.0, 0.4]
         ),
 		use_container_width=True
 	)
@@ -168,3 +168,16 @@ elif show_option in model.COMPARTMENTS:
         spec=_vega_default_spec(color=colors[show_option]),
 		use_container_width=True
 	)
+
+text = """ 
+
+Note that there are _a lot_ of free parameters.  It is possible to create
+basically any model outcome from the choice of these interdependent
+parameters.  This web app is valuable insofar as it illustrates the broad
+trends and features of the standard compartmental models, when interacting
+cohorts are introduced.  For example, there can be two or even more waves of
+infection.  That's like, basically, that's about all we can get from this.
+
+"""
+
+st.markdown(text)

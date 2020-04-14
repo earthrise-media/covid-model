@@ -7,8 +7,8 @@ INCUBATION_PERIOD = 3
 DURATION_OF_INFECTION = 14
 
 COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
-AGE_RANGES = ['0-4', '5-9', '10-19', '20+']
-ROUGH_2017_POPULATION = [32., 28., 44., 88.]  # in millions, per Wikipedia 
+AGE_RANGES = ['0-18', '19-34', '35-64', '65+']
+ROUGH_2017_POPULATION = [76., 68., 144., 52.]  # in millions, per Wikipedia 
 POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
 
 # Initial compartment populations
@@ -32,9 +32,9 @@ def model_input(cohort_ranges):
 
 	# The transition matrix for when ALL four cohorts are in general population
 	genpop_matrix = np.array([
-		[0.1, 0.1, 0.2, 0.1],
-		[0.1, 0.1, 0.2, 0.1],
-		[0.2, 0.2, 0.2, 0.1],
+		[0.1, 0.1, 0.1, 0.1],
+		[0.1, 0.1, 0.1, 0.1],
+		[0.1, 0.1, 0.1, 0.1],
 		[0.1, 0.1, 0.1, 0.1]
 	])
 
