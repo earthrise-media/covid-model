@@ -57,7 +57,7 @@ import scipy.integrate
 COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
 
 # Example age-cohort structure and initial populations
-AGE_RANGES = ['0-18', '19-34', '35-64', '65+']
+COHORTS = ['0-18', '19-34', '35-64', '65+']
 ROUGH_2017_POPULATION = [76., 68., 144., 52.]  # in millions, per Wikipedia 
 POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
 initial_infected = .0001
