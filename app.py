@@ -74,7 +74,10 @@ st.write(df)
 
 
 # Sidebar
-show_option = st.sidebar.selectbox('Population to show', ["All"] + model.COMPARTMENTS)
+show_option = st.sidebar.selectbox(
+	'Population to show', 
+	["Infected", "Died or Recovered", "Exposed", "Susceptible", "All"]
+)
 
 # Create a series of sliders for the time range of each cohort
 # TODO: There is probably a more elegant way to do this.

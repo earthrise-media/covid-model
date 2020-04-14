@@ -17,6 +17,10 @@ Navigate to [localhost:8501](http://localhost:8501/) in your browser.
 ## developing
 There is an option in Streamlit to reload upon saving. The best setup that I've discovered so far is to run the code editor and browser in dual panes, fullscreen.
 
+```
+streamlit run app.py  # if you don't want to run docker
+```
+
 ## deploy
 
 Login to the Heroku CLI using the Earthrise Developer credentials:
