@@ -25,9 +25,8 @@ Login to the Heroku CLI using the Earthrise Developer credentials:
 heroku login
 ```
 
-Then push and release the image to our 
+Then deploy the web app:
 
 ```
-heroku container:push web --app radiant-atoll-45380
-heroku container:release web --app radiant-atoll-45380
+git push heroku master
 ```
