@@ -96,7 +96,6 @@ class SEIRModel(object):
     External methods: 
         f: Function giving the rate of change in the state variable y(t).
         solve: Integrate the coupled differential equations.
-        solve_to_dataframe: Solve and output a tidy dataframe.
     """
 
     def __init__(self, betas, epoch_end_times, alpha=1/INCUBATION_PERIOD,
