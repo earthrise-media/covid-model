@@ -27,6 +27,7 @@ Login to the Heroku CLI using the Earthrise Developer credentials:
 
 ```
 heroku login
+heroku git:remote -a radiant-atoll-45380 
 ```
 
 Then deploy the web app:
