@@ -118,8 +118,9 @@ cohort_ranges = [
 betas, epoch_end_times = model.model_input(cohort_ranges)
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
-
+t, y = res.solve(model.pop_0.flatten())
+df = res._to_dataframe(t, y)
+death_df = res._estimate_deaths(t, y)
 
 colors = dict(zip(model.COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2"]))
 

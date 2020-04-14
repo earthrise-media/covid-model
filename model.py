@@ -58,22 +58,23 @@ COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
 
 # Example age-cohort structure and initial populations
 COHORTS = ['0-18', '19-34', '35-64', '65+']
-ROUGH_2017_POPULATION = [76., 68., 144., 52.]  # in millions, per Wikipedia 
-POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
+ROUGH_2017_POPULATION = [76., 68., 144., 52.]  # in millions, per Wikipedia
+TOTAL_POPULATION = np.sum(ROUGH_2017_POPULATION)
+POPULATION_FRACTIONS = ROUGH_2017_POPULATION / TOTAL_POPULATION
 initial_infected = .0001
 pop_0 = np.round(
-    np.array([
-        [f - initial_infected, 0, initial_infected, 0] for f in POPULATION_FRACTIONS
-    ]), 
+    np.array([[f - initial_infected, 0, initial_infected, 0]
+                  for f in POPULATION_FRACTIONS]), 
     decimals=5
 )
+DEATH_RATES = [0.01, 0.02, 0.04, 0.1]
 
 # Model parameters:
 INCUBATION_PERIOD = 3
 DURATION_OF_INFECTION = 14
 BETA_CONST = .2
 BETA_ALL_COHORTS_MIXING = BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
-DEATH_RATES_BY_COHORT = [0.01, 0.02, 0.04, 0.1]
+
 
 class SEIRModel(object):
     """Class to solve an age-structured SEIR Compartmental model.
@@ -86,6 +87,8 @@ class SEIRModel(object):
         gamma: Inverse duration of infection
         cohorts: List of names of (age) cohorts
         N_cohorts: Number of cohorts
+        death_rates: Emperical death rates by cohort
+        total_pop: Total population across all cohorts
         compartments: List of names of compartments
         N_compartments: Number of compartments (hard-coded to 4: S-E-I-R)
         s, e, i, r: Indices of the compartments in the state vector y(t). 
@@ -97,7 +100,8 @@ class SEIRModel(object):
     """
 
     def __init__(self, betas, epoch_end_times, alpha=1/INCUBATION_PERIOD,
-                 gamma=1/DURATION_OF_INFECTION, cohorts=COHORTS):
+                 gamma=1/DURATION_OF_INFECTION, cohorts=COHORTS,
+                 death_rates=DEATH_RATES, total_pop=TOTAL_POPULATION):
         
         if len(epoch_end_times) != len(betas):
             raise ValueError('Each beta matrix requires an epoch end time.')
@@ -107,6 +111,8 @@ class SEIRModel(object):
         self.gamma = gamma
         self.cohorts = cohorts
         self.N_cohorts = len(cohorts)
+        self.death_rates = death_rates
+        self.total_pop = total_pop
         
         # N.B. hard-coded values. The function f() assumes these four
         # compartments.
@@ -142,29 +148,27 @@ class SEIRModel(object):
             t_eval=np.arange(self.epoch_end_times[-1]))
         return sol.t, sol.y
     
-    def solve_to_dataframe(self, y0):
-        """Solve and output a tidy dataframe."""
-        t, y = self.solve(y0)
+    def _to_dataframe(self, t, y):
+        """Output a tidy dataframe from solution t,y."""
         y = y.reshape(self.N_cohorts, self.N_compartments, len(t))
 
         # calculate the time series for the total population
         aggregate_nums = np.sum(y, axis=0)
-        df = pd.DataFrame(dict({'days': t}, **dict(zip(self.compartments, aggregate_nums))))
+        df = pd.DataFrame(dict({'days': t},
+                          **dict(zip(self.compartments, aggregate_nums))))
         df = pd.melt(df, id_vars=['days'], var_name='Group', value_name='pop')
         df['Date(s) of intervention'] = str(self.epoch_end_times[:-1])
+        return df
 
-        # Calculate the aggregate deaths by cohort.  Position matters!!!  The
-        # "Died or recovered" compartment is in the final position. Then,
-        # also, collect the final number in the evolution, hence the dual "-1"
-        # indices.
-        final_died_or_recovered = [x[-1][-1] for x in y]
-        number_died_or_recovered = np.multiply(final_died_or_recovered, ROUGH_2017_POPULATION)
-        death_numbers = np.multiply(number_died_or_recovered, DEATH_RATES_BY_COHORT)
-
-        death_df = pd.DataFrame([death_numbers], columns = COHORTS, index=["Deaths (millions)"])
-        death_df["Total"] = sum(death_numbers)
-        return df, death_df
-
+    def _estimate_deaths(self, t, y):
+        """Estimate the number of deaths from the solution t,y."""
+        y = y.reshape(self.N_cohorts, self.N_compartments, len(t))
+        died_or_recovered = y[:, self.r, -1] * self.total_pop
+        deaths = died_or_recovered * self.death_rates
+        df = pd.DataFrame([deaths], columns=self.cohorts,
+                          index=["Deaths (millions)"])
+        df["Total"] = np.sum(deaths)
+        return df
 
 def model_input(cohort_ranges):
 	"""
