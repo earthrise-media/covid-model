@@ -98,7 +98,7 @@ second_range = st.slider(
 
 third_range = st.slider(
 	'Period of mixing for [%s] cohort:' % (model.COHORTS[2]),
-	0, 180, (52, 180)
+	0, 180, (72, 180)
 )
 
 fourth_range = st.slider(
