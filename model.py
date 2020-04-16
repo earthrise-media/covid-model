@@ -60,7 +60,7 @@ COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
 COHORTS = ['0-18', '19-34', '35-64', '65+']
 ROUGH_2017_POPULATION = [76., 68., 144., 52.]  # in millions, per Wikipedia 
 POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
-initial_infected = .0001
+initial_infected = .002
 pop_0 = np.round(
     np.array([
         [f - initial_infected, 0, initial_infected, 0] for f in POPULATION_FRACTIONS
@@ -69,11 +69,11 @@ pop_0 = np.round(
 )
 
 # Model parameters:
-INCUBATION_PERIOD = 3
+INCUBATION_PERIOD = 5
 DURATION_OF_INFECTION = 14
 BETA_CONST = .2
 BETA_ALL_COHORTS_MIXING = BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
-DEATH_RATES_BY_COHORT = [0.01, 0.02, 0.04, 0.1]
+DEATH_RATES_BY_COHORT = [0.001, 0.002, 0.004, 0.01]
 
 class SEIRModel(object):
     """Class to solve an age-structured SEIR Compartmental model.
