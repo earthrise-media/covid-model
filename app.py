@@ -196,11 +196,8 @@ infection.  That's like, basically, that's about all we can get from this.
 st.markdown(text)
 
 
-
-
-
-
-# Introductory text
+# Policy scenarios through illustration of the behavior of differential
+# equations.
 st.title('Toward re-opening the economy')
 
 st.subheader('An exploration of differential equations.')
@@ -221,6 +218,7 @@ mixing_range = st.slider(
 	0, 180, (0, 180)
 )
 
+# All cohorts mix at the same time.
 cohort_ranges = np.repeat([mixing_range], 4, axis=0)
 betas, epoch_end_times = model.model_input(cohort_ranges)
 
@@ -238,9 +236,6 @@ st.vega_lite_chart(
 
 st.write(death_df)
 
-# st.write(epoch_end_times)
-
-
 text = """ 
 
 What happens if we allow some people to re-enter the economy before others?
@@ -256,22 +251,36 @@ st.markdown(text)
 text = """
 
 Consider a made-up country with a very young population &mdash; with 75% of
-the population under the age of 35 and a population of 100M.  However, also
-assume that the severity of the illness is much worse in older people,
-requiring hospitalization; and that the severe infection rate is the most
-important consideration for re-opening the economy.
+the population under a certain age, say, under the age of 35.  Assume further
+that the severity of the illness is much worse in older people, requiring 
+hospitalization at a much greater rate than for young people that contract the
+illness.  Returning to business as usual requires hospitalization to remain
+under a certain threshold.
+
+The following graph illustrates the concept of phased re-introduction of two
+subpopulations with different hospitalization usage.  The parameters are made
+up to clearly show the unique features of this cohort model.  Specifically,
+this model illustrates NPIs with differential treatment of sub-populations
+with different characteristics, but that interact with the evolution of the
+illness in all other sub-populations.
+
+Our suggestion is to play with the sliders to introduce the older population
+at different times, noting when the severe infection rate (in orange) dips
+below an arbitrary threshold (like 0.1).
 
 """
 
 st.markdown(text)
 
-COHORTS = ['0-18', '19-34', '35-64', '65+']
-ROUGH_2017_POPULATION = [50, 20, 20, 10]  # in millions
-POPULATION_FRACTIONS = ROUGH_2017_POPULATION / np.sum(ROUGH_2017_POPULATION)
-initial_infected = .002
+population = [50, 20, 20, 10]  # in millions
+population_fractions = population / np.sum(population)
+initial_infected = 0.002
+
+# Create an initial population array, with 4 (S, E, I, and R) compartments
 pop_0 = np.round(
     np.array([
-        [f - initial_infected, 0, initial_infected, 0] for f in POPULATION_FRACTIONS
+        [f - initial_infected, 0, initial_infected, 0] 
+        for f in population_fractions
     ]), 
     decimals=5
 )
@@ -294,7 +303,6 @@ betas, epoch_end_times = model.model_input(
     evolution_length=100
 )
 
-
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df, death_df, y = res.solve_to_dataframe(pop_0.flatten(), detailed_output=True)
 
@@ -312,40 +320,11 @@ old = pd.DataFrame(
     }
 )
 
-
-young["infection"] = young["infection1"] + young["infection2"]
-young["severe"] = young["infection"] * 0.2
-
-old["infection"] = old["infection1"] + old["infection2"]
-old["severe"] = old["infection"] * 0.8
-
-
-df1 = pd.DataFrame(
-    {
-        "days": range(0, 100),
-        "pop" : young["infection"] + old["infection"],
-        "Group": "Infection"
-    }
+df = pd.DataFrame(
+	{
+		"infection": young["infection1"] + young["infection2"] + old["infection1"] + old["infection2"],
+		"severe": (young["infection1"] + young["infection2"]) * 0.15 + (old["infection1"] + old["infection2"]) * 0.85
+	}
 )
 
-df2 = pd.DataFrame(
-    {
-        "days": range(0, 100),
-        "pop" : young["severe"] + old["severe"],
-        "Group": "Severe Infection"
-    }
-)
-
-
-df = df1.append(df2)
-
-st.vega_lite_chart(
-    data=df,
-    spec=_vega_default_spec(
-    	color=[],
-        scale=[0.0,0.6],
-        evolution_length=100
-    ),
-    use_container_width=True
-)
-
+st.area_chart(df)
