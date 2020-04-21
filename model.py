@@ -71,7 +71,7 @@ pop_0 = np.round(
 # Model parameters:
 INCUBATION_PERIOD = 5
 DURATION_OF_INFECTION = 14
-BETA_CONST = .2
+BETA_CONST = .3
 BETA_ALL_COHORTS_MIXING = BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
 DEATH_RATES_BY_COHORT = [0.001, 0.002, 0.004, 0.01]
 
@@ -96,8 +96,12 @@ class SEIRModel(object):
         solve_to_dataframe: Solve and output a tidy dataframe.
     """
 
-    def __init__(self, betas, epoch_end_times, alpha=1/INCUBATION_PERIOD,
-                 gamma=1/DURATION_OF_INFECTION, cohorts=COHORTS):
+    def __init__(
+            self, betas, epoch_end_times, 
+            alpha=1/INCUBATION_PERIOD,
+            gamma=1/DURATION_OF_INFECTION, 
+            cohorts=COHORTS
+        ):
         
         if len(epoch_end_times) != len(betas):
             raise ValueError('Each beta matrix requires an epoch end time.')
@@ -142,7 +146,7 @@ class SEIRModel(object):
             t_eval=np.arange(self.epoch_end_times[-1]))
         return sol.t, sol.y
     
-    def solve_to_dataframe(self, y0):
+    def solve_to_dataframe(self, y0, detailed_output=False):
         """Solve and output a tidy dataframe."""
         t, y = self.solve(y0)
         y = y.reshape(self.N_cohorts, self.N_compartments, len(t))
@@ -163,10 +167,14 @@ class SEIRModel(object):
 
         death_df = pd.DataFrame([death_numbers], columns = COHORTS, index=["Deaths (millions)"])
         death_df["Total"] = sum(death_numbers)
-        return df, death_df
+
+        if detailed_output == True:
+            return df, death_df, y
+        else:
+            return df, death_df
 
 
-def model_input(cohort_ranges):
+def model_input(cohort_ranges, seclusion_scale=0.05, evolution_length=180):
 	"""
 	Function to calculuate transmission matrices and to enumerate their end
 	period.
@@ -174,6 +182,9 @@ def model_input(cohort_ranges):
 	Argument cohort_ranges: List of day range tuples denoting the period
         during which each cohort mixes (transmits disease) with the general
         population
+
+    Argument seclusion_scale:  There will always be *some* mixing, even under
+        shelter-in-place
 
 	Returns a list of two lists for input into SEIRModel():
 		1. A list of the transition matrices
@@ -183,7 +194,7 @@ def model_input(cohort_ranges):
 
 	# Partition total range in to its unique end periods
 	flat_dates = [v for sublist in cohort_ranges for v in sublist]
-	flat_dates = set(flat_dates + [0, 180])
+	flat_dates = set(flat_dates + [0, evolution_length])
 
 	# Unique and sorted list of epoch begin and end days.
 	epoch_delims = sorted(list(dict.fromkeys(flat_dates)))
@@ -221,9 +232,8 @@ def model_input(cohort_ranges):
 
 		for i in range(len(cohort_ranges)):
 			if _is_removed(cohort_ranges[i], epoch_tuples[j]):
-				res_mat[i, :] = 0
-				res_mat[:, i] = 0
-
+				res_mat[i, :] = seclusion_scale
+				res_mat[:, i] = seclusion_scale
 
 		transition_matrices.append(res_mat)
 
