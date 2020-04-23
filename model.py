@@ -71,8 +71,8 @@ pop_0 = np.round(
 # Model parameters:
 INCUBATION_PERIOD = 5
 DURATION_OF_INFECTION = 14
-BETA_CONST = .3
-BETA_ALL_COHORTS_MIXING = BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
+MIXING_BETA_CONST = .4
+BETA_ALL_COHORTS_MIXING = MIXING_BETA_CONST * np.ones((len(COHORTS), len(COHORTS)))
 DEATH_RATES_BY_COHORT = [0.001, 0.002, 0.004, 0.01]
 
 class SEIRModel(object):
@@ -174,26 +174,25 @@ class SEIRModel(object):
             return df, death_df
 
 
-def model_input(cohort_ranges, seclusion_scale=0.05, evolution_length=180):
+def model_input(sequestered_ranges, seclusion_scale=0.02, evolution_length=180):
 	"""
 	Function to calculuate transmission matrices and to enumerate their end
 	period.
 
-	Argument cohort_ranges: List of day range tuples denoting the period
-        during which each cohort mixes (transmits disease) with the general
-        population
+	Argument exclusion_ranges: List of day range tuples denoting the period
+        during which each cohort is excluded from the general population.
 
     Argument seclusion_scale:  There will always be *some* mixing, even under
         shelter-in-place
 
 	Returns a list of two lists for input into SEIRModel():
 		1. A list of the transition matrices
-		2. A list of epoch end times
+		2. A list of epoch end times for mixing
 
 	"""
 
 	# Partition total range in to its unique end periods
-	flat_dates = [v for sublist in cohort_ranges for v in sublist]
+	flat_dates = [v for sublist in sequestered_ranges for v in sublist]
 	flat_dates = set(flat_dates + [0, evolution_length])
 
 	# Unique and sorted list of epoch begin and end days.
@@ -211,27 +210,25 @@ def model_input(cohort_ranges, seclusion_scale=0.05, evolution_length=180):
 	# length of this list is equal to the length of the final result.
 	epoch_tuples = list(_tuplize(epoch_delims))
 
-	# Custom check to deal with range sliders inclusive of both bounds and
-	# zero-indexed python lists
-	def _is_removed(cohort_range, epoch_tuple):
-		cs = set(range(*cohort_range))
+	def _intersects(sequestered_range, epoch_tuple):
+		cs = set(range(*sequestered_range))
 		es = set(range(*epoch_tuple))
-		if len(cs.intersection(es)) <= 1:
+		if len(cs.intersection(es)) > 1:
 			return True
 		else:
 			return False
 
 	transition_matrices = []
-	# iteratively alter the BETA_ALL_COHORTS_MIXING matrix by checking if a
-    # given population should be removed for each time partition
+	# iteratively alter the BETA_ALL_COHORTS_SEQUESTERED matrix by checking if a
+    # given population should be added for each time partition
 	for j in range(len(epoch_tuples)): 
 
 		# reset general popultation matrix for each epoch, and set
         # transmission to zero values for cohorts that have been removed
 		res_mat = BETA_ALL_COHORTS_MIXING.copy()
 
-		for i in range(len(cohort_ranges)):
-			if _is_removed(cohort_ranges[i], epoch_tuples[j]):
+		for i in range(len(sequestered_ranges)):
+			if _intersects(sequestered_ranges[i], epoch_tuples[j]):
 				res_mat[i, :] = seclusion_scale
 				res_mat[:, i] = seclusion_scale
 

@@ -87,23 +87,23 @@ show_option = st.sidebar.selectbox(
 # Create a series of sliders for the time range of each cohort
 # TODO: There is probably a more elegant way to do this.
 first_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.COHORTS[0]),
-	0, 180, (0, 180)
+	'Period of NPI for [%s] cohort:' % (model.COHORTS[0]),
+	0, 180, (115, 180)
 )
 
 second_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.COHORTS[1]),
-	0, 180, (0, 150)
+	'Period of NPI for [%s] cohort:' % (model.COHORTS[1]),
+	0, 180, (80, 180)
 )
 
 third_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.COHORTS[2]),
-	0, 180, (72, 180)
+	'Period of NPI for [%s] cohort:' % (model.COHORTS[2]),
+	0, 180, (10, 80)
 )
 
 fourth_range = st.slider(
-	'Period of mixing for [%s] cohort:' % (model.COHORTS[3]),
-	0, 180, (115, 180)
+	'Period of NPI for [%s] cohort:' % (model.COHORTS[3]),
+	0, 180, (0, 115)
 )
 
 cohort_ranges = [
@@ -115,7 +115,10 @@ cohort_ranges = [
 
 
 # Generate the beta matrices and epoch ends:
-betas, epoch_end_times = model.model_input(cohort_ranges, seclusion_scale=0.01)
+betas, epoch_end_times = model.model_input(
+	cohort_ranges, 
+	seclusion_scale=0.001
+)
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
@@ -164,7 +167,7 @@ elif show_option == "Infected":
 		data=df[df["Group"] == show_option],
         spec=_vega_default_spec(
         	color=colors[show_option],
-        	scale=[0.0, 0.4]
+        	scale=[0.0, 0.6]
         ),
 		use_container_width=True
 	)
@@ -214,13 +217,13 @@ right, the curve flattens.  The red period, in effect, is an open economy.
 st.write(text)
 
 mixing_range = st.slider(
-	'Period of mixing for everyone',
+	'Period of intervention for whole population',
 	0, 180, (0, 180)
 )
 
 # All cohorts mix at the same time.
 cohort_ranges = np.repeat([mixing_range], 4, axis=0)
-betas, epoch_end_times = model.model_input(cohort_ranges)
+betas, epoch_end_times = model.model_input(cohort_ranges, seclusion_scale=0.05)
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
@@ -265,8 +268,8 @@ with different characteristics, but that interact with the evolution of the
 illness in all other sub-populations.
 
 Our suggestion is to play with the sliders to introduce the older population
-at different times, noting when the severe infection rate (in orange) dips
-below an arbitrary threshold (like 0.1).
+earlier, noting when the severe infection rate (in orange) exceeds an
+arbitrary threshold (like 0.1).
 
 """
 
@@ -286,13 +289,13 @@ pop_0 = np.round(
 )
 
 young_range = st.slider(
-	'Period of mixing for younger cohort:',
-	0, 100, (5, 100)
+	'Period of NPI for younger cohort:',
+	0, 100, (0, 16)
 )
 
 old_range = st.slider(
-	'Period of mixing for older cohort:',
-	0, 100, (40, 100)
+	'Period of NPI for older cohort:',
+	0, 100, (0, 60)
 )
 
 cohort_ranges = [young_range, young_range, old_range, old_range]
@@ -300,7 +303,7 @@ cohort_ranges = [young_range, young_range, old_range, old_range]
 betas, epoch_end_times = model.model_input(
     cohort_ranges, 
     seclusion_scale=0.03,
-    evolution_length=100
+    evolution_length=130
 )
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
