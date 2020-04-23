@@ -207,10 +207,12 @@ st.subheader('An exploration of differential equations.')
 
 text = """ 
 
-The concept of *flattening the curve* is now well-understood. Drag the start
-period of mixing to the right to delay mixing for everyone. This reflects a
-shelter-in-place order for everyone. As you drag the start period to the
-right, the curve flattens.  The red period, in effect, is an open economy.
+The concept of *flattening the curve* is now well-understood. If you delay the
+start of the NPI, and allow mixing for the early period, you can observe the
+spike in infection. (This corresponds to moving the start period of the NPI
+from Day 0 to, say, Day 20.)  This further underscores the value of immediate
+action in a pandemic. The curve remains flat if the NPI is enacted, with only
+a small bump in infections when the NPI is removed.  
 
 """
 
@@ -218,7 +220,7 @@ st.write(text)
 
 mixing_range = st.slider(
 	'Period of intervention for whole population',
-	0, 180, (0, 180)
+	0, 180, (0, 90)
 )
 
 # All cohorts mix at the same time.
