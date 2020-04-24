@@ -77,12 +77,27 @@ st.write(df)
 
 ## RUN MODEL 
 
-
 # Sidebar
+
+
+
+st.sidebar.markdown(
+	"""
+	# Options for models
+
+	--------
+
+	**Illustration #1**: NPIs for all four cohorts.
+
+	"""
+)
+
 show_option = st.sidebar.selectbox(
 	'Population to show', 
 	["Infected", "Died or recovered", "Exposed", "Susceptible", "All"]
 )
+
+st.sidebar.markdown("-------")
 
 # Create a series of sliders for the time range of each cohort
 # TODO: There is probably a more elegant way to do this.
@@ -201,9 +216,8 @@ st.markdown(text)
 
 # Policy scenarios through illustration of the behavior of differential
 # equations.
-st.title('Toward re-opening the economy')
 
-st.subheader('An exploration of differential equations.')
+st.subheader('Flattening the curve, illustrated.')
 
 text = """ 
 
@@ -240,6 +254,8 @@ st.vega_lite_chart(
 )
 
 st.write(death_df)
+
+st.subheader('Different NPIs for different sub-populations.')
 
 text = """ 
 
