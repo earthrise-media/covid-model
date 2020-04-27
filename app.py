@@ -10,7 +10,7 @@ st.subheader(
 	'All models are wrong. Some are useful.'
 )
 
-text = """ 
+st.markdown(""" 
 
 This model should be used as a heuristic to illustrate the effect of lifting
 NPIs for certain sub-populations. The numbers are not projections, but rather
@@ -28,9 +28,7 @@ cohorts by age.
 Our multidimensional generalization of the standard SEIR compartmental model
 is represented as follows:
 
-"""
-
-st.markdown(text)
+""")
 
 eqnarray = r"""
 	\begin{array}{lll}
@@ -47,26 +45,22 @@ eqnarray = r"""
 
 st.latex(eqnarray)
 
-text = """
+st.write("""
 
 The subscripts (a,b) index the (age) cohorts, while alpha, beta, and gamma are
 the inverse incubation period, the transmissibility between cohorts, and
 the inverse duration of infection, respectively.
 
-"""
-
-st.write(text)  
+""")  
 
 ## DISPLAY INITIAL CONDITIONS
 
-text = """
+st.write("""
 
 The table below represents the initial conditions at Day 0 for each age
 cohort.  We pulled the age distribution for the United States in 2017.
 
-"""
-
-st.write(text)
+""")
 
 df = pd.DataFrame(
 	model.pop_0, 
@@ -78,8 +72,6 @@ st.write(df)
 ## RUN MODEL 
 
 # Sidebar
-
-
 
 st.sidebar.markdown(
 	"""
@@ -197,7 +189,7 @@ elif show_option in model.COMPARTMENTS:
 
 st.dataframe(death_df.style.highlight_max(axis=1, color="#e39696"))
 
-text = """ 
+st.markdown(""" 
 
 The parameter values are **especially** wrong. We just made up some numbers. These
 should be set from empirical evidence.
@@ -209,9 +201,7 @@ trends and features of the standard compartmental models, when interacting
 cohorts are introduced.  For example, there can be two or even more waves of
 infection.  That's like, basically, that's about all we can get from this.
 
-"""
-
-st.markdown(text)
+""")
 
 
 # Policy scenarios through illustration of the behavior of differential
@@ -219,7 +209,7 @@ st.markdown(text)
 
 st.subheader('Flattening the curve, illustrated.')
 
-text = """ 
+st.write(""" 
 
 The concept of *flattening the curve* is now well-understood. If you delay the
 start of the NPI, and allow mixing for the early period, you can observe the
@@ -228,9 +218,7 @@ from Day 0 to, say, Day 20.)  This further underscores the value of immediate
 action in a pandemic. The curve remains flat if the NPI is enacted, with only
 a small bump in infections when the NPI is removed.  
 
-"""
-
-st.write(text)
+""")
 
 mixing_range = st.slider(
 	'Period of intervention for whole population',
@@ -257,19 +245,13 @@ st.write(death_df)
 
 st.subheader('Different NPIs for different sub-populations.')
 
-text = """ 
+st.markdown(""" 
 
 What happens if we allow some people to re-enter the economy before others?
 For example, suppose we allow young people to go to school before allowing
 *everyone* to mix. The infection rate won't necessarily change, but the
 hospitalizations may not spike as high, since younger people don't get so
 sick.
-
-"""
-
-st.markdown(text)
-
-text = """
 
 Consider a made-up country with a very young population &mdash; with 75% of
 the population under a certain age, say, under the age of 35.  Assume further
@@ -289,9 +271,7 @@ Our suggestion is to play with the sliders to introduce the older population
 earlier, noting when the severe infection rate (in orange) exceeds an
 arbitrary threshold (like 0.1).
 
-"""
-
-st.markdown(text)
+""")
 
 population = [50, 20, 20, 10]  # in millions
 population_fractions = population / np.sum(population)
@@ -349,3 +329,110 @@ df = pd.DataFrame(
 )
 
 st.area_chart(df)
+
+## STACKING NPIs with regional adjustment
+
+st.sidebar.markdown(
+    """
+    **Illustration #4**: Stacking NPIs with regional adjustment
+
+    """
+)
+
+region_option = st.sidebar.selectbox(
+    'Region', 
+    ["North America", "Africa", "Europe"]
+)
+
+st.sidebar.markdown("-------")
+
+st.subheader('Stacking NPIs: An illustration.')
+
+st.markdown(""" 
+
+It is challenging to distinguish the effect of individual public health and
+social measures (PHSMs) on the rate of COVID-19 transmission within a
+population (reproductive number R0); effectiveness depends on how fully
+communities adopt and adhere to PHSMs, additional interventions they are
+combined with, and other variables like family size and level of
+intergenerational contact within a community. Still, evidence does show that
+PHSMs are more effective when implemented in combination, or “stacked,” than
+when implemented individually. 
+
+The following scenario expressly illustrates this concept, when the PHSMs are
+tied to partitions of the general population (i.e., a person can only belong
+to one category). This is the primary limitation of this illustration, one
+that can be mitigated with more precise definitions of NPIs. There is the
+added feature of chosing the initial conditions based on region.  See the
+sidebar for options.  The default is the United States.  
+
+""")
+
+pop_lookup = {
+    "North America": [90., 77., 140., 62.],
+    "Africa"       : [679., 316., 298., 47.],
+    "Europe"       : [158., 136., 310., 142.]
+}
+
+
+cohort_ages = ['0-18', '19-34', '35-64', '65+']
+pop_2020 = pop_lookup[region_option]
+pop_fractions = pop_2020 / np.sum(pop_2020)
+
+
+st.markdown('''
+    > **%s** (2020) 
+    >> *Use sidebar to change region. Data from UN.*
+''' % region_option)
+
+initial_populations = np.round(
+    np.array([
+        [f - initial_infected, 0, initial_infected, 0] for f in pop_fractions
+    ]), 
+    decimals=5
+)
+
+first_npi = st.slider(
+    'Schools closed.',
+    0, 180, (0, 20)
+)
+
+second_npi = st.slider(
+    'Restaurants, universities, and bars closed.',
+    0, 180, (0, 60)
+)
+
+third_npi = st.slider(
+    'Offices closed.',
+    0, 180, (0, 80)
+)
+
+fourth_npi = st.slider(
+    'Senior citizens remained quarantined.',
+    0, 180, (0, 120)
+)
+
+npi_ranges = [
+    first_npi,
+    second_npi,
+    third_npi,
+    fourth_npi
+]
+
+betas, epoch_end_times = model.model_input(
+    npi_ranges, 
+    seclusion_scale=0.001
+)
+
+res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
+df, death_df = res.solve_to_dataframe(initial_populations.flatten())
+
+st.vega_lite_chart(
+    data=df[df["Group"] == "Infected"],
+    spec=_vega_default_spec(
+        color="#e45756",
+        scale=[0.0, 0.6]
+    ),
+    use_container_width=True
+)
+
