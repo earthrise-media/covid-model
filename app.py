@@ -135,7 +135,8 @@ colors = dict(zip(model.COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2
 def _vega_default_spec(
         color=None, 
         scale=[0.0, 1.0], 
-        evolution_length=180
+        evolution_length=180,
+        start_day=0
     ):
     spec={
         'mark': {'type': 'line', 'tooltip': True},
@@ -144,7 +145,7 @@ def _vega_default_spec(
                 'field': 'days', 
                 'type': 'quantitative',
                 'axis': {'title': ""},
-                'scale': {'domain': [0, evolution_length]}
+                'scale': {'domain': [start_day, evolution_length]}
             },
             'y': {
                 'field': 'pop', 
@@ -344,6 +345,14 @@ region_option = st.sidebar.selectbox(
     ["North America", "Africa", "Europe"]
 )
 
+start_date = st.sidebar.number_input(
+    label='Start day',
+    value=int(),
+    min_value=int(0),
+    max_value=int(60),
+    step=int()
+)
+
 st.sidebar.markdown("-------")
 
 st.subheader('Stacking NPIs: An illustration.')
@@ -421,17 +430,19 @@ npi_ranges = [
 
 betas, epoch_end_times = model.model_input(
     npi_ranges, 
-    seclusion_scale=0.001
+    seclusion_scale=0.02
 )
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df, death_df = res.solve_to_dataframe(initial_populations.flatten())
+infected = df[df["Group"] == "Infected"]
 
 st.vega_lite_chart(
-    data=df[df["Group"] == "Infected"],
+    data=infected[infected["days"] > start_date],
     spec=_vega_default_spec(
         color="#e45756",
-        scale=[0.0, 0.6]
+        scale=[0.0, 0.6],
+        start_day=start_date
     ),
     use_container_width=True
 )
