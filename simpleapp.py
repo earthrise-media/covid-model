@@ -108,13 +108,16 @@ pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
 					   f * initial_infected, 0] for f in pop_percents])
 
 
+death_rates_by_cohort = [0.0001, 0.004, 0.004, 0.06]
+
 # Introductory text
 st.title('Illustrating stacked NPIs in the browser')
-st.subheader(
-	'A simple age-structured, compartmental model.'
-)
 
 st.markdown(""" 
+
+> **If policy makers are using prevailing models and *also* talking about
+lifting NPIs based on age, then they are using this model**, whether they know
+it or not.
 
 This model should be used as a heuristic to illustrate the effect of lifting
 NPIs for certain sub-populations. The numbers are not projections, but rather
@@ -212,6 +215,11 @@ and the incubation period (**%s** days).  These parameters can be adjusted in
 the sidebar, and the graphs, tables, and text on this page will automatically
 re-render according to the new set of assumptions.
 
+There are some parameters that are not adjustable on this page.  These include
+the death rates by age and the lag in death (after infection).  We have
+consulted with Dr. Lee and we currently use the assumption that the lag is
+**14** days, and the death rates are .
+
 
 """
 
@@ -277,7 +285,25 @@ tied to partitions of the general population (i.e., a person can only belong
 to one category). This is the primary limitation of this illustration, one
 that can be mitigated with more precise definitions of NPIs. There is the
 added feature of chosing the initial conditions based on region.  See the
-sidebar for options.  The default is North America.  
+sidebar for options.
+
+We recognize the wild parameter assumptions, as well as the instability of the
+implicit projections.  This should mainly be used to illustrate the pattern of
+the infection &mdash; the surge and resurgence &mdash; rather than the number
+of projected deaths.  This number is tallied at the end to demonstrate the
+impact of prolonged, high infection rates rather than momentary spikes.  It
+is, in effect, a way to understand the area under the curve without 
+additional lines on the chart.
+
+The reason why we believe that this is so important is that this is the
+model that policy makers are currently using, whether they know it or not. 
+The parameter specifications may be different.  However, almost all of the
+prevailing models are based on the compartmental SEIR model or some slight
+variant.  We've reviewed dozens of these models in preparation of this web
+app.  The model displayed here is just a cohort-based generalization.  **If
+policy makers are using prevailing models and *also* talking about lifting
+NPIs based on age, then they are using this model**.  This web app is just an
+interactive visualization.
 
 """)
 
@@ -318,7 +344,7 @@ betas, epoch_end_times = model.model_input(
 
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df = res.solve_to_dataframe(pop_0.flatten())
+df, y = res.solve_to_dataframe(pop_0.flatten(), detailed_output=True)
 infected = df[df["Group"] == "Infected"]
 
 chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
@@ -326,4 +352,32 @@ chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
 		x=alt.X('days', axis=alt.Axis(title='Days')),
 		y=alt.Y('pop', axis=alt.Axis(title='Percent infected'), scale=alt.Scale(domain=(0,50))))
 
+
+st.markdown('Infections in **%s**' % (region_option))
+
 st.altair_chart(chart, use_container_width=True)
+
+
+# Calculate the aggregate deaths by cohort.  Position matters!!!  The
+# "Died or recovered" compartment is in the final position. Then,
+# also, collect the final number in the evolution, hence the dual "-1"
+# indices.
+final_died_or_recovered = [x[-1][-1] for x in y]
+number_died_or_recovered = np.multiply(final_died_or_recovered, population)/100
+death_numbers = np.multiply(number_died_or_recovered, death_rates_by_cohort)*1000000
+
+death_df = pd.DataFrame([death_numbers], columns = cohort_ages, index=["Deaths        "])
+death_df["Total"] = sum(death_numbers)
+
+display_df = np.round(death_df).astype('int32')
+
+st.write(display_df.style.highlight_max(axis=1, color="#e39696"))
+
+st.markdown(""" 
+
+> **Note**: These projections are more likely incorrect than correct.  Please
+be advised.  The objective is to visualize the patterns of infection and
+recovery &mdash; an interactive visualization of the differential equations
+that underlie the prevailing models.
+
+""")
