@@ -8,50 +8,105 @@ import model
 # Sidebar and the subsequent parameter definitions
 
 st.sidebar.markdown(
-    """
-    ## Parameters and assumptions
-    --------
-    """
+	"""
+	## Parameters and assumptions
+	--------
+
+	**Initial conditions**
+	"""
 )
 
 region_option = st.sidebar.selectbox(
-    'Region', 
-    ["North America", "Africa", "Europe"]
-)
-
-start_date = st.sidebar.number_input(
-    label='Start day (for visualization)',
-    value=int(),
-    min_value=int(0),
-    max_value=int(60),
-    step=int()
+	'Region', 
+	["North America", "Africa", "Europe"]
 )
 
 initial_infected = st.sidebar.number_input(
-    label='Initial rate of infection',
-    min_value=0.01,
-    max_value=0.7,
-    step=0.01
+	label='Initial rate of infection (percent)',
+	min_value=0.01,
+	max_value=70.,
+	step=0.01
+)
+
+# The sidebar number input is limited in significant digits.  To ensure that
+# the initial conditions reflect reality, allow for lower initial infection
+# rates by dividing by 100 and treating the input as percents.
+initial_infected /= 100
+
+st.sidebar.markdown(
+	"""
+	--------
+
+	**Model parameters**
+	"""
+)
+
+mixing_constant = st.sidebar.number_input(
+	label='Transmission rate when cohort is mixing',
+	value=0.4,
+	min_value=0.01,
+	max_value=0.9,
+	step=0.01
+)
+
+seclusion_constant = st.sidebar.number_input(
+	label='Transmission rate when chort is not mixing',
+	value=0.03,
+	min_value=0.01,
+	max_value=0.9,
+	step=0.01
+)
+
+duration_period = st.sidebar.number_input(
+	label='Duration of infection (in days)',
+	value=int(14),
+	min_value=int(1),
+	max_value=int(100),
+	step=int()
+)
+
+incubation_period = st.sidebar.number_input(
+	label='Incubation period (in days)',
+	value=int(5),
+	min_value=int(1),
+	max_value=int(100),
+	step=int()
 )
 
 
+st.sidebar.markdown(
+	"""
+	--------
+
+	**Visualization parameters**
+	"""
+)
+
+start_date = st.sidebar.number_input(
+	label='Start day (for visualization purposes only)',
+	value=int(),
+	min_value=int(0),
+	max_value=int(60),
+	step=int()
+)
+
+
+# Derived parameters from user settings
+
 
 pop_lookup = {
-    "North America": [90., 77., 140., 62.],
-    "Africa"       : [679., 316., 298., 47.],
-    "Europe"       : [158., 136., 310., 142.]
+	"North America": [90., 77., 140., 62.],
+	"Africa"       : [679., 316., 298., 47.],
+	"Europe"       : [158., 136., 310., 142.]
 }
 
 cohort_ages = ['0-18', '19-34', '35-64', '65+']
 population = pop_lookup[region_option]
-pop_fractions = population / np.sum(population)
+pop_percents = 100 * np.array(population) / np.sum(population)
 
 pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
-                       f * initial_infected, 0] for f in pop_fractions])
+					   f * initial_infected, 0] for f in pop_percents])
 
-# Beta entries for mixing in the population and shelter-in-place
-MIXING = 0.4
-SECLUSION = 0.04
 
 # Introductory text
 st.title('Illustrating stacked NPIs in the browser')
@@ -120,8 +175,8 @@ distributions from the United Nations:
 """) 
 
 df = pd.DataFrame(
-    pop_lookup,
-    index=cohort_ages
+	pop_lookup,
+	index=cohort_ages
 ).T
 
 df["Total (in millions)"] = df.sum(axis=1)
@@ -133,14 +188,14 @@ st.write("""
 Based on this information and **the parameter selections in the sidebar** the
 initial conditions are as follows:
 
-Initial conditions for **%s** (2020) as a proportion of the population:
+Initial conditions for **%s** (2020) as a percentage of the population:
 
 """ % region_option)
 
 display_pop_0 = pd.DataFrame(
-    pop_0,
-    index=cohort_ages,
-    columns=model.COMPARTMENTS
+	pop_0,
+	index=cohort_ages,
+	columns=model.COMPARTMENTS
 )
 
 st.write(display_pop_0)
@@ -152,10 +207,15 @@ cohort is assumed to be **%s**. If the cohort is mixing when, for example, the
 NPI is lifted, then the transmission rate is **%s**. These entries represent
 the cell values in the model's *&beta;* matrix. 
 
+Other parameter assumptions include the duration of infection (**%s** days)
+and the incubation period (**%s** days).  These parameters can be adjusted in
+the sidebar, and the graphs, tables, and text on this page will automatically
+re-render according to the new set of assumptions.
+
 
 """
 
-% (SECLUSION, MIXING)
+% (seclusion_constant, mixing_constant, duration_period, incubation_period)
 
 )
 
@@ -174,28 +234,28 @@ have been collapsed into a single, total population.
 """)
 
 mixing_range = st.slider(
-    'Period of shelter-in-place for whole population',
-    0, 300, (0, 160)
+	'Period of shelter-in-place for whole population',
+	0, 300, (10, 160)
 )
 
 cohort_ranges = np.repeat([mixing_range], 4, axis=0)
 
 betas, epoch_end_times = model.model_input(
-    cohort_ranges, 
-    seclusion_scale=SECLUSION,
-    evolution_length=300,
-    mixing_beta_const=MIXING
+	cohort_ranges, 
+	seclusion_scale=seclusion_constant,
+	evolution_length=300,
+	mixing_beta_const=mixing_constant
 )
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df = res.solve_to_dataframe(pop_0.flatten())
 
-infected = df[df["Group"] == "Infected"]
+infected = df[(df["Group"] == "Infected")]
 
 chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
-    color="#e45756").encode(
-        x=alt.X('days', axis=alt.Axis(title='')),
-        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Percent infected'), scale=alt.Scale(domain=(0,50))))
 
 st.altair_chart(chart, use_container_width=True)
 
@@ -217,43 +277,43 @@ tied to partitions of the general population (i.e., a person can only belong
 to one category). This is the primary limitation of this illustration, one
 that can be mitigated with more precise definitions of NPIs. There is the
 added feature of chosing the initial conditions based on region.  See the
-sidebar for options.  The default is the United States.  
+sidebar for options.  The default is North America.  
 
 """)
 
 
 first_npi = st.slider(
-    'Schools closed.',
-    0, 180, (0, 20)
+	'Schools closed.',
+	0, 300, (10, 45)
 )
 
 second_npi = st.slider(
-    'Restaurants, universities, and bars closed.',
-    0, 180, (0, 60)
+	'Restaurants, universities, and bars closed.',
+	0, 300, (10, 125)
 )
 
 third_npi = st.slider(
-    'Offices closed.',
-    0, 180, (0, 80)
+	'Offices closed.',
+	0, 300, (10, 150)
 )
 
 fourth_npi = st.slider(
-    'Senior citizens remained quarantined.',
-    0, 180, (0, 120)
+	'Senior citizens remained quarantined.',
+	0, 300, (10, 170)
 )
 
 npi_ranges = [
-    first_npi,
-    second_npi,
-    third_npi,
-    fourth_npi
+	first_npi,
+	second_npi,
+	third_npi,
+	fourth_npi
 ]
 
 betas, epoch_end_times = model.model_input(
-    npi_ranges, 
-    seclusion_scale=SECLUSION,
-    evolution_length=300,
-    mixing_beta_const=MIXING
+	npi_ranges, 
+	seclusion_scale=seclusion_constant,
+	evolution_length=300,
+	mixing_beta_const=mixing_constant
 )
 
 
@@ -262,8 +322,8 @@ df = res.solve_to_dataframe(pop_0.flatten())
 infected = df[df["Group"] == "Infected"]
 
 chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
-    color="#e45756").encode(
-        x=alt.X('days', axis=alt.Axis(title='')),
-        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Percent infected'), scale=alt.Scale(domain=(0,50))))
 
 st.altair_chart(chart, use_container_width=True)
