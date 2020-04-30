@@ -53,7 +53,7 @@ pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
 
 # Beta entries for mixing in the population and shelter-in-place
 MIXING = 0.4
-SECLUSION = 0.04
+SECLUSION = 0.02
 
 # Introductory text
 st.title('Illustrating stacked NPIs in the browser')
@@ -177,7 +177,7 @@ have been collapsed into a single, total population.
 
 mixing_range = st.slider(
     'Period of shelter-in-place for whole population',
-    0, 300, (0, 160)
+    0, 300, (10, 160)
 )
 
 cohort_ranges = np.repeat([mixing_range], 4, axis=0)
@@ -227,22 +227,22 @@ sidebar for options.  The default is the United States.
 
 first_npi = st.slider(
     'Schools closed.',
-    0, 180, (0, 20)
+    0, 180, (10, 50)
 )
 
 second_npi = st.slider(
     'Restaurants, universities, and bars closed.',
-    0, 180, (0, 60)
+    0, 180, (10, 70)
 )
 
 third_npi = st.slider(
     'Offices closed.',
-    0, 180, (0, 80)
+    0, 180, (10, 100)
 )
 
 fourth_npi = st.slider(
     'Senior citizens remained quarantined.',
-    0, 180, (0, 120)
+    0, 180, (10, 150)
 )
 
 npi_ranges = [
