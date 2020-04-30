@@ -218,7 +218,8 @@ re-render according to the new set of assumptions.
 There are some parameters that are not adjustable on this page.  These include
 the death rates by age and the lag in death (after infection).  We have
 consulted with Dr. Lee and we currently use the assumption that the lag is
-**14** days, and the death rates are .
+**13** days, and the age-defined death rates are **0.01** percent [0-18], **0.4**
+percent [19-65], and **6** percent [65+].
 
 
 """
@@ -255,7 +256,13 @@ betas, epoch_end_times = model.model_input(
 	mixing_beta_const=mixing_constant
 )
 
-res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
+res = model.SEIRModel(
+	betas=betas, 
+	epoch_end_times=epoch_end_times,
+	incubation_period=incubation_period,
+	duration_of_infection=duration_period
+)
+
 df = res.solve_to_dataframe(pop_0.flatten())
 
 infected = df[(df["Group"] == "Infected")]
@@ -343,7 +350,13 @@ betas, epoch_end_times = model.model_input(
 )
 
 
-res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
+res = model.SEIRModel(
+	betas=betas, 
+	epoch_end_times=epoch_end_times,
+	incubation_period=incubation_period,
+	duration_of_infection=duration_period
+)
+
 df, y = res.solve_to_dataframe(pop_0.flatten(), detailed_output=True)
 infected = df[df["Group"] == "Infected"]
 
