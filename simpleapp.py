@@ -1,6 +1,8 @@
+import altair as alt
 import streamlit as st
 import numpy as np
 import pandas as pd
+
 import model
 
 # Sidebar and the subsequent parameter definitions
@@ -50,38 +52,6 @@ pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
 # Beta entries for mixing in the population and shelter-in-place
 MIXING = 0.4
 SECLUSION = 0.04
-
-# Visualization specification (default)
-
-def _vega_default_spec(
-        color=None, 
-        scale=[0.0, 1.0], 
-        evolution_length=180,
-        start_day=0
-    ):
-    spec={
-        'mark': {'type': 'line', 'tooltip': True},
-        'encoding': {
-            'x': {
-                'field': 'days', 
-                'type': 'quantitative',
-                'axis': {'title': ""},
-                'scale': {'domain': [start_day, evolution_length]}
-            },
-            'y': {
-                'field': 'pop', 
-                'type': 'quantitative',
-                'axis': {'title': ""},
-                'scale': {'domain': scale}
-            },
-          'color': {'field': 'Group', 'type': 'nominal'}
-        }
-    }
-    if color:
-        spec['encoding'].pop('color')
-        spec['mark'].update({'color': color})
-    return spec
-
 
 # Introductory text
 st.title('Illustrating stacked NPIs in the browser')
@@ -222,15 +192,12 @@ df = res.solve_to_dataframe(pop_0.flatten())
 
 infected = df[df["Group"] == "Infected"]
 
-st.vega_lite_chart(
-  data=infected[infected["days"] > start_date],
-    spec=_vega_default_spec(
-      color="#e45756",
-      scale=[0.0, 0.3],
-      evolution_length=300
-    ),
-  use_container_width=True
-)
+chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
+    color="#e45756").encode(
+        x=alt.X('days', axis=alt.Axis(title='')),
+        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+
+st.altair_chart(chart, use_container_width=True)
 
 st.subheader('Stacking NPIs: An illustration.')
 
@@ -294,13 +261,9 @@ res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df = res.solve_to_dataframe(pop_0.flatten())
 infected = df[df["Group"] == "Infected"]
 
-st.vega_lite_chart(
-    data=infected[infected["days"] > start_date],
-    spec=_vega_default_spec(
-        color="#e45756",
-        scale=[0.0, 0.3],
-        start_day=start_date,
-        evolution_length=300
-    ),
-    use_container_width=True
-)
+chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
+    color="#e45756").encode(
+        x=alt.X('days', axis=alt.Axis(title='')),
+        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+
+st.altair_chart(chart, use_container_width=True)
