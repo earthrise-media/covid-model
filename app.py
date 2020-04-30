@@ -343,11 +343,6 @@ first_npi = st.slider(
 	0, 300, (10, 45)
 )
 
-second_npi = st.slider(
-	'Restaurants, universities, and bars closed.',
-	0, 300, (10, 125)
-)
-
 third_npi = st.slider(
 	'Offices closed.',
 	0, 300, (10, 150)
@@ -360,7 +355,7 @@ fourth_npi = st.slider(
 
 npi_ranges = [
 	first_npi,
-	second_npi,
+	third_npi,
 	third_npi,
 	fourth_npi
 ]
