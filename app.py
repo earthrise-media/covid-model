@@ -281,7 +281,7 @@ initial_infected = 0.002
 # Create an initial population array, with 4 (S, E, I, and R) compartments
 pop_0 = np.round(
     np.array([
-        [f - initial_infected, 0, initial_infected, 0] 
+        [f * (1 - initial_infected), 0, f * initial_infected, 0] 
         for f in population_fractions
     ]), 
     decimals=5

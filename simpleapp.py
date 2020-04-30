@@ -44,9 +44,8 @@ cohort_ages = ['0-18', '19-34', '35-64', '65+']
 population = pop_lookup[region_option]
 pop_fractions = population / np.sum(population)
 
-pop_0 = np.array([
-    [f - initial_infected, 0, initial_infected, 0] for f in pop_fractions
-])
+pop_0 = np.array([[f * (1 - initial_infected), 0, f * initial_infected, 0]
+                      for f in pop_fractions])
 
 # Beta entries for mixing in the population and shelter-in-place
 MIXING = 0.4
@@ -217,8 +216,6 @@ betas, epoch_end_times = model.model_input(
     evolution_length=300,
     mixing_beta_const=MIXING
 )
-
-
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df = res.solve_to_dataframe(pop_0.flatten())
