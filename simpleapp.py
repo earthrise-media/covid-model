@@ -28,11 +28,13 @@ start_date = st.sidebar.number_input(
 )
 
 initial_infected = st.sidebar.number_input(
-    label='Initial rate of infection',
+    label='Initial rate of infection (percent)',
+    value=0.1,
     min_value=0.01,
-    max_value=0.7,
+    max_value=70.,
     step=0.01
 )
+initial_infected /= 100
 
 
 
@@ -44,10 +46,10 @@ pop_lookup = {
 
 cohort_ages = ['0-18', '19-34', '35-64', '65+']
 population = pop_lookup[region_option]
-pop_fractions = population / np.sum(population)
+pop_percents = 100 * np.array(population) / np.sum(population)
 
 pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
-                       f * initial_infected, 0] for f in pop_fractions])
+                       f * initial_infected, 0] for f in pop_percents])
 
 # Beta entries for mixing in the population and shelter-in-place
 MIXING = 0.4
@@ -133,7 +135,7 @@ st.write("""
 Based on this information and **the parameter selections in the sidebar** the
 initial conditions are as follows:
 
-Initial conditions for **%s** (2020) as a proportion of the population:
+Initial conditions for **%s** (2020) as a percentage of the population:
 
 """ % region_option)
 
@@ -190,12 +192,13 @@ betas, epoch_end_times = model.model_input(
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
 df = res.solve_to_dataframe(pop_0.flatten())
 
-infected = df[df["Group"] == "Infected"]
+infected = df[(df["Group"] == "Infected")]
 
 chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
     color="#e45756").encode(
-        x=alt.X('days', axis=alt.Axis(title='')),
-        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+        x=alt.X('days', axis=alt.Axis(title='Days')),
+        y=alt.Y('pop', axis=alt.Axis(title='Percent infected'),
+                scale=alt.Scale(domain=(0,30))))
 
 st.altair_chart(chart, use_container_width=True)
 
@@ -263,7 +266,8 @@ infected = df[df["Group"] == "Infected"]
 
 chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
     color="#e45756").encode(
-        x=alt.X('days', axis=alt.Axis(title='')),
-        y=alt.Y('pop', axis=alt.Axis(title=''), scale=alt.Scale(domain=(0,.3))))
+        x=alt.X('days', axis=alt.Axis(title='Days')),
+        y=alt.Y('pop', axis=alt.Axis(title='Percent infected'),
+                scale=alt.Scale(domain=(0,30))))
 
 st.altair_chart(chart, use_container_width=True)
