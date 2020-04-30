@@ -5,8 +5,37 @@ import pandas as pd
 
 import model
 
-# Sidebar and the subsequent parameter definitions
+# Copied and cleaned from the UN World Pop database
+pop_lookup = {
+	'Australia': [6.439, 5.251, 9.675, 4.134],
+	'Azerbaijan': [3.021, 2.55, 3.884, 0.684],
+	'Bangladesh': [59.647, 43.528, 52.906, 8.608],
+	'Brazil': [60.237, 51.253, 80.68, 20.389],
+	'Chile': [4.922, 4.541, 7.313, 2.34],
+	'Germany': [15.812, 14.819, 34.983, 18.171],
+	'India': [487.063, 352.078, 450.143, 90.72],
+	'Italy': [10.728, 9.469, 26.176, 14.089],
+	'Kenya': [26.761, 13.617, 12.044, 1.349],
+	'Mozambique': [17.313, 7.256, 5.792, 0.894],
+	'Myanmar': [18.938, 13.291, 18.788, 3.393],
+	'New Zealand': [1.24, 0.996, 1.797, 0.789],
+	'Niger': [14.659, 4.983, 3.936, 0.628],
+	'Nigeria': [111.556, 46.222, 42.718, 5.644],
+	'Norway': [1.257, 1.103, 2.111, 0.95],
+	'Philippines': [43.384, 27.831, 32.326, 6.04],
+	'Rwanda': [6.467, 3.19, 2.892, 0.404],
+	'Senegal': [8.896, 3.934, 3.393, 0.52],
+	'Sierra Leone': [4.093, 1.959, 1.691, 0.234],
+	'South Africa': [21.995, 15.516, 18.531, 3.268],
+	'Sweden': [2.321, 1.97, 3.755, 2.053],
+	'Tajikistan': [4.366, 2.435, 2.434, 0.303],
+	'The Russian Federation': [33.879, 28.152, 61.271, 22.633],
+	'The United Kingdom': [15.687, 13.266, 26.271, 12.663],
+	'The United States of America': [82.054, 69.147, 124.753, 55.049]
+}
 
+
+# Sidebar and the subsequent parameter definitions
 st.sidebar.markdown(
 	"""
 	## Parameters and assumptions
@@ -17,8 +46,9 @@ st.sidebar.markdown(
 )
 
 region_option = st.sidebar.selectbox(
-	'Region', 
-	["North America", "Africa", "Europe"]
+	'Country', 
+	list(pop_lookup.keys()),
+	index=(len(list(pop_lookup.keys()))-1)
 )
 
 initial_infected = st.sidebar.number_input(
@@ -93,13 +123,6 @@ start_date = st.sidebar.number_input(
 
 # Derived parameters from user settings
 
-
-pop_lookup = {
-	"North America": [90., 77., 140., 62.],
-	"Africa"       : [679., 316., 298., 47.],
-	"Europe"       : [158., 136., 310., 142.]
-}
-
 cohort_ages = ['0-18', '19-34', '35-64', '65+']
 population = pop_lookup[region_option]
 pop_percents = 100 * np.array(population) / np.sum(population)
@@ -172,8 +195,8 @@ st.write("""
 
 The following assumptions and parameters are used as inputs to the
 age-structured models. The number of people in each age cohort is part of the
-initial conditions for the model. We use the following regional data on age
-distributions from the United Nations:
+initial conditions for the model. We use the following national population
+data on age distributions (in millions) from the United Nations:
 
 """) 
 
@@ -182,9 +205,9 @@ df = pd.DataFrame(
 	index=cohort_ages
 ).T
 
-df["Total (in millions)"] = df.sum(axis=1)
+df["Total"] = df.sum(axis=1)
 
-st.write(df)
+st.dataframe(df.style.highlight_max(axis=1, color="#A9BEBE").set_precision(1))
 
 st.write("""
 
@@ -236,9 +259,9 @@ The simplest version of the model is a constant transmission matrix.  This is
 effectively the standard SEIR model, which has been widely used to show the
 benefits of acting early in a pandemic to 'flatten the curve.' 
 
-Note that the region will not make a difference for the infection curve for
-this illustration, since the age distribution does not matter &mdash; all ages
-have been collapsed into a single, total population.
+Note that the country selection will not make a difference for the infection
+curve for this illustration, since the age distribution does not matter
+&mdash; all ages have been collapsed into a single, total population.
 
 """)
 
@@ -379,7 +402,7 @@ final_died_or_recovered = [x[-1][-1] for x in y]
 number_died_or_recovered = np.multiply(final_died_or_recovered, population)/100
 death_numbers = np.multiply(number_died_or_recovered, death_rates_by_cohort)*1000000
 
-death_df = pd.DataFrame([death_numbers], columns = cohort_ages, index=["Deaths        "])
+death_df = pd.DataFrame([death_numbers], columns = cohort_ages, index=["Deaths by cohort"])
 death_df["Total"] = sum(death_numbers)
 
 display_df = np.round(death_df).astype('int32')
