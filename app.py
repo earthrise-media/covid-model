@@ -1,16 +1,123 @@
+import altair as alt
 import streamlit as st
 import numpy as np
 import pandas as pd
+
 import model
 
+# Sidebar and the subsequent parameter definitions
 
-# Introductory text
-st.title('This model is wrong.')
-st.subheader(
-	'All models are wrong. Some are useful.'
+st.sidebar.markdown(
+	"""
+	## Parameters and assumptions
+	--------
+
+	**Initial conditions**
+	"""
 )
 
+region_option = st.sidebar.selectbox(
+	'Region', 
+	["North America", "Africa", "Europe"]
+)
+
+initial_infected = st.sidebar.number_input(
+	label='Initial rate of infection (percent)',
+	min_value=0.01,
+	max_value=70.,
+	step=0.01
+)
+
+# The sidebar number input is limited in significant digits.  To ensure that
+# the initial conditions reflect reality, allow for lower initial infection
+# rates by dividing by 100 and treating the input as percents.
+initial_infected /= 100
+
+st.sidebar.markdown(
+	"""
+	--------
+
+	**Model parameters**
+	"""
+)
+
+mixing_constant = st.sidebar.number_input(
+	label='Transmission rate when cohort is mixing',
+	value=0.4,
+	min_value=0.01,
+	max_value=0.9,
+	step=0.01
+)
+
+seclusion_constant = st.sidebar.number_input(
+	label='Transmission rate when chort is not mixing',
+	value=0.03,
+	min_value=0.01,
+	max_value=0.9,
+	step=0.01
+)
+
+duration_period = st.sidebar.number_input(
+	label='Duration of infection (in days)',
+	value=int(14),
+	min_value=int(1),
+	max_value=int(100),
+	step=int()
+)
+
+incubation_period = st.sidebar.number_input(
+	label='Incubation period (in days)',
+	value=int(5),
+	min_value=int(1),
+	max_value=int(100),
+	step=int()
+)
+
+
+st.sidebar.markdown(
+	"""
+	--------
+
+	**Visualization parameters**
+	"""
+)
+
+start_date = st.sidebar.number_input(
+	label='Start day (for visualization purposes only)',
+	value=int(),
+	min_value=int(0),
+	max_value=int(60),
+	step=int()
+)
+
+
+# Derived parameters from user settings
+
+
+pop_lookup = {
+	"North America": [90., 77., 140., 62.],
+	"Africa"       : [679., 316., 298., 47.],
+	"Europe"       : [158., 136., 310., 142.]
+}
+
+cohort_ages = ['0-18', '19-34', '35-64', '65+']
+population = pop_lookup[region_option]
+pop_percents = 100 * np.array(population) / np.sum(population)
+
+pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
+					   f * initial_infected, 0] for f in pop_percents])
+
+
+death_rates_by_cohort = [0.0001, 0.004, 0.004, 0.06]
+
+# Introductory text
+st.title('Illustrating stacked NPIs in the browser')
+
 st.markdown(""" 
+
+> **If policy makers are using prevailing models and *also* talking about
+lifting NPIs based on age, then they are using this model**, whether they know
+it or not.
 
 This model should be used as a heuristic to illustrate the effect of lifting
 NPIs for certain sub-populations. The numbers are not projections, but rather
@@ -51,313 +158,118 @@ The subscripts (a,b) index the (age) cohorts, while alpha, beta, and gamma are
 the inverse incubation period, the transmissibility between cohorts, and
 the inverse duration of infection, respectively.
 
+Note that we use age to partition the general population. The cohorts need not
+be defined by age, as long as the categories are non-overlapping and complete.
+Another partition may be urban/rural or service/manufacturing/student/other.
+Age is convenient and relevant way to do this, since the NPIs we examine are
+generally defined by age.
+
 """)  
 
-## DISPLAY INITIAL CONDITIONS
+st.subheader('Initial conditions and parameter assumptions')
 
 st.write("""
 
-The table below represents the initial conditions at Day 0 for each age
-cohort.  We pulled the age distribution for the United States in 2017.
+The following assumptions and parameters are used as inputs to the
+age-structured models. The number of people in each age cohort is part of the
+initial conditions for the model. We use the following regional data on age
+distributions from the United Nations:
 
-""")
+""") 
 
 df = pd.DataFrame(
-	model.pop_0, 
-	index=model.COHORTS
-)
-df.columns = model.COMPARTMENTS
+	pop_lookup,
+	index=cohort_ages
+).T
+
+df["Total (in millions)"] = df.sum(axis=1)
+
 st.write(df)
 
-## RUN MODEL 
+st.write("""
 
-# Sidebar
+Based on this information and **the parameter selections in the sidebar** the
+initial conditions are as follows:
 
-st.sidebar.markdown(
-	"""
-	# Options for models
+Initial conditions for **%s** (2020) as a percentage of the population:
 
-	--------
+""" % region_option)
 
-	**Illustration #1**: NPIs for all four cohorts.
-
-	"""
+display_pop_0 = pd.DataFrame(
+	pop_0,
+	index=cohort_ages,
+	columns=model.COMPARTMENTS
 )
 
-show_option = st.sidebar.selectbox(
-	'Population to show', 
-	["Infected", "Died or recovered", "Exposed", "Susceptible", "All"]
+st.write(display_pop_0)
+
+st.write("""
+
+If an age cohort is not mixing, then its transmission rate between any other
+cohort is assumed to be **%s**. If the cohort is mixing when, for example, the
+NPI is lifted, then the transmission rate is **%s**. These entries represent
+the cell values in the model's *&beta;* matrix. 
+
+Other parameter assumptions include the duration of infection (**%s** days)
+and the incubation period (**%s** days).  These parameters can be adjusted in
+the sidebar, and the graphs, tables, and text on this page will automatically
+re-render according to the new set of assumptions.
+
+There are some parameters that are not adjustable on this page.  These include
+the death rates by age and the lag in death (after infection).  We have
+consulted with Dr. Lee and we currently use the assumption that the lag is
+**14** days, and the death rates are .
+
+
+"""
+
+% (seclusion_constant, mixing_constant, duration_period, incubation_period)
+
 )
 
-st.sidebar.markdown("-------")
+st.subheader('An illustration of *Flattening the Curve*')
 
-# Create a series of sliders for the time range of each cohort
-# TODO: There is probably a more elegant way to do this.
-first_range = st.slider(
-	'Period of NPI for [%s] cohort:' % (model.COHORTS[0]),
-	0, 180, (115, 180)
-)
+st.write("""
 
-second_range = st.slider(
-	'Period of NPI for [%s] cohort:' % (model.COHORTS[1]),
-	0, 180, (80, 180)
-)
+The simplest version of the model is a constant transmission matrix.  This is
+effectively the standard SEIR model, which has been widely used to show the
+benefits of acting early in a pandemic to 'flatten the curve.' 
 
-third_range = st.slider(
-	'Period of NPI for [%s] cohort:' % (model.COHORTS[2]),
-	0, 180, (10, 80)
-)
-
-fourth_range = st.slider(
-	'Period of NPI for [%s] cohort:' % (model.COHORTS[3]),
-	0, 180, (0, 115)
-)
-
-cohort_ranges = [
-	first_range,
-	second_range,
-	third_range,
-	fourth_range
-]
-
-
-# Generate the beta matrices and epoch ends:
-betas, epoch_end_times = model.model_input(
-	cohort_ranges, 
-	seclusion_scale=0.001
-)
-
-res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
-
-colors = dict(zip(model.COMPARTMENTS, ["#4c78a8", "#f58518", "#e45756", "#72b7b2"]))
-
-def _vega_default_spec(
-        color=None, 
-        scale=[0.0, 1.0], 
-        evolution_length=180,
-        start_day=0
-    ):
-    spec={
-        'mark': {'type': 'line', 'tooltip': True},
-        'encoding': {
-            'x': {
-                'field': 'days', 
-                'type': 'quantitative',
-                'axis': {'title': ""},
-                'scale': {'domain': [start_day, evolution_length]}
-            },
-            'y': {
-                'field': 'pop', 
-                'type': 'quantitative',
-                'axis': {'title': ""},
-                'scale': {'domain': scale}
-            },
-        	'color': {'field': 'Group', 'type': 'nominal'}
-        }
-    }
-    if color:
-        spec['encoding'].pop('color')
-        spec['mark'].update({'color': color})
-    return spec
-
-if show_option == "All":
-    st.subheader(show_option)
-    st.vega_lite_chart(
-        data=df,
-        spec=_vega_default_spec(),
-        use_container_width=True
-    )
-    
-elif show_option == "Infected":
-	st.subheader(show_option)
-	st.vega_lite_chart(
-		data=df[df["Group"] == show_option],
-        spec=_vega_default_spec(
-        	color=colors[show_option],
-        	scale=[0.0, 0.6]
-        ),
-		use_container_width=True
-	)
-
-elif show_option in model.COMPARTMENTS:
-	st.subheader(show_option)
-	st.vega_lite_chart(
-		data=df[df["Group"] == show_option],
-        spec=_vega_default_spec(color=colors[show_option]),
-		use_container_width=True
-	)
-
-st.dataframe(death_df.style.highlight_max(axis=1, color="#e39696"))
-
-st.markdown(""" 
-
-The parameter values are **especially** wrong. We just made up some numbers. These
-should be set from empirical evidence.
-
-Note that there are _a lot_ of free parameters.  It is possible to create
-basically any model outcome from the choice of these interdependent
-parameters.  This web app is valuable insofar as it illustrates the broad
-trends and features of the standard compartmental models, when interacting
-cohorts are introduced.  For example, there can be two or even more waves of
-infection.  That's like, basically, that's about all we can get from this.
-
-""")
-
-
-# Policy scenarios through illustration of the behavior of differential
-# equations.
-
-st.subheader('Flattening the curve, illustrated.')
-
-st.write(""" 
-
-The concept of *flattening the curve* is now well-understood. If you delay the
-start of the NPI, and allow mixing for the early period, you can observe the
-spike in infection. (This corresponds to moving the start period of the NPI
-from Day 0 to, say, Day 20.)  This further underscores the value of immediate
-action in a pandemic. The curve remains flat if the NPI is enacted, with only
-a small bump in infections when the NPI is removed.  
+Note that the region will not make a difference for the infection curve for
+this illustration, since the age distribution does not matter &mdash; all ages
+have been collapsed into a single, total population.
 
 """)
 
 mixing_range = st.slider(
-	'Period of intervention for whole population',
-	0, 180, (0, 90)
+	'Period of shelter-in-place for whole population',
+	0, 300, (10, 160)
 )
 
-# All cohorts mix at the same time.
 cohort_ranges = np.repeat([mixing_range], 4, axis=0)
-betas, epoch_end_times = model.model_input(cohort_ranges, seclusion_scale=0.05)
-
-res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df, death_df = res.solve_to_dataframe(model.pop_0.flatten())
-
-st.vega_lite_chart(
-	data=df[df["Group"] == "Infected"],
-    spec=_vega_default_spec(
-    	color="#e45756",
-    	scale=[0.0, 0.6]
-    ),
-	use_container_width=True
-)
-
-st.write(death_df)
-
-st.subheader('Different NPIs for different sub-populations.')
-
-st.markdown(""" 
-
-What happens if we allow some people to re-enter the economy before others?
-For example, suppose we allow young people to go to school before allowing
-*everyone* to mix. The infection rate won't necessarily change, but the
-hospitalizations may not spike as high, since younger people don't get so
-sick.
-
-Consider a made-up country with a very young population &mdash; with 75% of
-the population under a certain age, say, under the age of 35.  Assume further
-that the severity of the illness is much worse in older people, requiring 
-hospitalization at a much greater rate than for young people that contract the
-illness.  Returning to business as usual requires hospitalization to remain
-under a certain threshold.
-
-The following graph illustrates the concept of phased re-introduction of two
-subpopulations with different hospitalization usage.  The parameters are made
-up to clearly show the unique features of this cohort model.  Specifically,
-this model illustrates NPIs with differential treatment of sub-populations
-with different characteristics, but that interact with the evolution of the
-illness in all other sub-populations.
-
-Our suggestion is to play with the sliders to introduce the older population
-earlier, noting when the severe infection rate (in orange) exceeds an
-arbitrary threshold (like 0.1).
-
-""")
-
-population = [50, 20, 20, 10]  # in millions
-population_fractions = population / np.sum(population)
-initial_infected = 0.002
-
-# Create an initial population array, with 4 (S, E, I, and R) compartments
-pop_0 = np.round(
-    np.array([
-        [f * (1 - initial_infected), 0, f * initial_infected, 0] 
-        for f in population_fractions
-    ]), 
-    decimals=5
-)
-
-young_range = st.slider(
-	'Period of NPI for younger cohort:',
-	0, 100, (0, 16)
-)
-
-old_range = st.slider(
-	'Period of NPI for older cohort:',
-	0, 100, (0, 60)
-)
-
-cohort_ranges = [young_range, young_range, old_range, old_range]
 
 betas, epoch_end_times = model.model_input(
-    cohort_ranges, 
-    seclusion_scale=0.03,
-    evolution_length=130
+	cohort_ranges, 
+	seclusion_scale=seclusion_constant,
+	evolution_length=300,
+	mixing_beta_const=mixing_constant
 )
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df, death_df, y = res.solve_to_dataframe(pop_0.flatten(), detailed_output=True)
+df = res.solve_to_dataframe(pop_0.flatten())
 
-young = pd.DataFrame(
-    {
-        "infection1": y[0][2],
-        "infection2": y[1][2]
-    }
-)
+infected = df[(df["Group"] == "Infected")]
 
-old = pd.DataFrame(
-    {
-        "infection1": y[2][2],
-        "infection2": y[3][2]
-    }
-)
+chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Percent infected'), scale=alt.Scale(domain=(0,50))))
 
-df = pd.DataFrame(
-	{
-		"infection": young["infection1"] + young["infection2"] + old["infection1"] + old["infection2"],
-		"severe": (young["infection1"] + young["infection2"]) * 0.15 + (old["infection1"] + old["infection2"]) * 0.85
-	}
-)
-
-st.area_chart(df)
-
-## STACKING NPIs with regional adjustment
-
-st.sidebar.markdown(
-    """
-    **Illustration #4**: Stacking NPIs with regional adjustment
-
-    """
-)
-
-region_option = st.sidebar.selectbox(
-    'Region', 
-    ["North America", "Africa", "Europe"]
-)
-
-start_date = st.sidebar.number_input(
-    label='Start day',
-    value=int(),
-    min_value=int(0),
-    max_value=int(60),
-    step=int()
-)
-
-st.sidebar.markdown("-------")
+st.altair_chart(chart, use_container_width=True)
 
 st.subheader('Stacking NPIs: An illustration.')
 
-st.markdown(""" 
+st.write("""
 
 It is challenging to distinguish the effect of individual public health and
 social measures (PHSMs) on the rate of COVID-19 transmission within a
@@ -373,77 +285,99 @@ tied to partitions of the general population (i.e., a person can only belong
 to one category). This is the primary limitation of this illustration, one
 that can be mitigated with more precise definitions of NPIs. There is the
 added feature of chosing the initial conditions based on region.  See the
-sidebar for options.  The default is the United States.  
+sidebar for options.
+
+We recognize the wild parameter assumptions, as well as the instability of the
+implicit projections.  This should mainly be used to illustrate the pattern of
+the infection &mdash; the surge and resurgence &mdash; rather than the number
+of projected deaths.  This number is tallied at the end to demonstrate the
+impact of prolonged, high infection rates rather than momentary spikes.  It
+is, in effect, a way to understand the area under the curve without 
+additional lines on the chart.
+
+The reason why we believe that this is so important is that this is the
+model that policy makers are currently using, whether they know it or not. 
+The parameter specifications may be different.  However, almost all of the
+prevailing models are based on the compartmental SEIR model or some slight
+variant.  We've reviewed dozens of these models in preparation of this web
+app.  The model displayed here is just a cohort-based generalization.  **If
+policy makers are using prevailing models and *also* talking about lifting
+NPIs based on age, then they are using this model**.  This web app is just an
+interactive visualization.
 
 """)
 
-pop_lookup = {
-    "North America": [90., 77., 140., 62.],
-    "Africa"       : [679., 316., 298., 47.],
-    "Europe"       : [158., 136., 310., 142.]
-}
-
-
-cohort_ages = ['0-18', '19-34', '35-64', '65+']
-pop_2020 = pop_lookup[region_option]
-pop_fractions = pop_2020 / np.sum(pop_2020)
-
-
-st.markdown('''
-    > **%s** (2020) 
-    >> *Use sidebar to change region. Data from UN.*
-''' % region_option)
-
-initial_populations = np.round(
-    np.array([
-        [f - initial_infected, 0, initial_infected, 0] for f in pop_fractions
-    ]), 
-    decimals=5
-)
 
 first_npi = st.slider(
-    'Schools closed.',
-    0, 180, (0, 20)
+	'Schools closed.',
+	0, 300, (10, 45)
 )
 
 second_npi = st.slider(
-    'Restaurants, universities, and bars closed.',
-    0, 180, (0, 60)
+	'Restaurants, universities, and bars closed.',
+	0, 300, (10, 125)
 )
 
 third_npi = st.slider(
-    'Offices closed.',
-    0, 180, (0, 80)
+	'Offices closed.',
+	0, 300, (10, 150)
 )
 
 fourth_npi = st.slider(
-    'Senior citizens remained quarantined.',
-    0, 180, (0, 120)
+	'Senior citizens remained quarantined.',
+	0, 300, (10, 170)
 )
 
 npi_ranges = [
-    first_npi,
-    second_npi,
-    third_npi,
-    fourth_npi
+	first_npi,
+	second_npi,
+	third_npi,
+	fourth_npi
 ]
 
 betas, epoch_end_times = model.model_input(
-    npi_ranges, 
-    seclusion_scale=0.02
+	npi_ranges, 
+	seclusion_scale=seclusion_constant,
+	evolution_length=300,
+	mixing_beta_const=mixing_constant
 )
+
 
 res = model.SEIRModel(betas=betas, epoch_end_times=epoch_end_times)
-df, death_df = res.solve_to_dataframe(initial_populations.flatten())
+df, y = res.solve_to_dataframe(pop_0.flatten(), detailed_output=True)
 infected = df[df["Group"] == "Infected"]
 
-st.vega_lite_chart(
-    data=infected[infected["days"] > start_date],
-    spec=_vega_default_spec(
-        color="#e45756",
-        scale=[0.0, 0.6],
-        start_day=start_date
-    ),
-    use_container_width=True
-)
+chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Percent infected'), scale=alt.Scale(domain=(0,50))))
 
+
+st.markdown('Infections in **%s**' % (region_option))
+
+st.altair_chart(chart, use_container_width=True)
+
+
+# Calculate the aggregate deaths by cohort.  Position matters!!!  The
+# "Died or recovered" compartment is in the final position. Then,
+# also, collect the final number in the evolution, hence the dual "-1"
+# indices.
+final_died_or_recovered = [x[-1][-1] for x in y]
+number_died_or_recovered = np.multiply(final_died_or_recovered, population)/100
+death_numbers = np.multiply(number_died_or_recovered, death_rates_by_cohort)*1000000
+
+death_df = pd.DataFrame([death_numbers], columns = cohort_ages, index=["Deaths        "])
+death_df["Total"] = sum(death_numbers)
+
+display_df = np.round(death_df).astype('int32')
+
+st.write(display_df.style.highlight_max(axis=1, color="#e39696"))
+
+st.markdown(""" 
+
+> **Note**: These projections are more likely incorrect than correct.  Please
+be advised.  The objective is to visualize the patterns of infection and
+recovery &mdash; an interactive visualization of the differential equations
+that underlie the prevailing models.
+
+""")
