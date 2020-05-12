@@ -1,6 +1,6 @@
 """Code to build and solve an age-structured SEIR epidemiological model.
 
-Some model assumptions, adjustable as needed:
+Some model assumptions:
  - Four compartment (S-E-I-R) model, stratified by age cohorts (or any other 
 division of the population such that individuals do not switch cohorts). 
 Age is a discrete variable. See app.py or the deployed app for analytic 
@@ -22,7 +22,7 @@ AGE_COHORTS = ['0-19', '20-59', '60+']
 
 INFECTION_FATALITY = [.0001, .0032, .0328]
 
-# population fractions by region
+# population fractions by region; UN 2020 data
 WORLD_POP = {
     'Africa': [.507, .438, .055],
     'Americas': [.293, .541, .166],
@@ -32,7 +32,7 @@ WORLD_POP = {
 WORLD_POP = {region: np.array(f) for region, f in WORLD_POP.items()}
 
 def _symmetrize(pop_fracs, contact_data):
-    """Construct a symmetric contact matrix from empirical data."""
+    """Construct a contact matrix with reciprocity from empirical data."""
     f = pop_fracs.copy()
     d = contact_data.copy()
     c = np.zeros((len(f), len(f)))
@@ -46,7 +46,7 @@ def _symmetrize(pop_fracs, contact_data):
 CONTACT_DATA = np.array([
     [7.86, 5.22, 0.5], [2.37, 7.69, 1.06], [1.19, 5.38, 1.92]])
 
-CONTACTS0 = {
+CONTACT_MATRICES_0 = {
     region: _symmetrize(f, CONTACT_DATA) for region, f in WORLD_POP.items()}
 
 # The effects of various non-pharmaceutical interventions.
@@ -75,7 +75,7 @@ class SEIRModel(object):
             here denotes a period of set interventions.) 
         epoch_end_times: List of days at which transmission rates change.
         alpha: Inverse incubation period
-        beta: probability of transmission given a contact
+        beta: Probability of transmission given a contact
         gamma: Inverse duration of infection
         N_cohorts: Number of cohorts 
         compartments: List of names of compartments
@@ -152,27 +152,24 @@ class SEIRModel(object):
         else:
             return df
 
-def model_input(contact0, date_ranges, total_days, applied_npis,
+def model_input(contact_matrix, day_ranges, selected_npis, total_days,
                 npi_impacts=NPI_IMPACTS):
     """
     Function to enumerate conact matrices and their epochs.
 
     Arguments:
-        contact0: Basic contact matrix, without interventions
-        date_ranges: List of day range tuples denoting the period
+        contact_matrix: Basic contact matrix, without interventions
+        day_ranges: List of day range tuples denoting the period
             during which interventions are applied
+        selected_npis: List of interventions, one for each date range
         total_days: Total number of days to run model
-        applied_npis: List of interventions, one for each date range
         npi_impacts: Dict of interventions of form {name: impact}, 
             cf. NPI_IMPACTS above.
         
-    Returns a list of two lists for input into SEIRModel():
-        1. A list of the contact matrices
-        2. A list of epoch end times for interventions
-
+    Returns: A list of effective contact matrices and a list of epoch end times
     """
-    def _intersects(date_range, epoch_tuple):
-        cs = set(range(*date_range))
+    def _intersects(day_range, epoch_tuple):
+        cs = set(range(*day_range))
         es = set(range(*epoch_tuple))
         if len(cs.intersection(es)) > 1:
             return True
@@ -186,25 +183,23 @@ def model_input(contact0, date_ranges, total_days, applied_npis,
             contact_matrix[idx_pair] *= impact.get('xi', 1)
         return contact_matrix
 
-    epoch_tuples = _partition(date_ranges, total_days)
+    epoch_tuples = _partition(day_ranges, total_days)
     contact_matrices = []
 
     for epoch in epoch_tuples:
-        c_eff = contact0.copy()
-        for dates, npi in zip(date_ranges, applied_npis):
-            if _intersects(dates, epoch):
+        c_eff = contact_matrix.copy()
+        for day_range, npi in zip(day_ranges, selected_npis):
+            if _intersects(day_range, epoch):
                 c_eff = _apply(npi, npi_impacts, c_eff)
         contact_matrices.append(c_eff)
 
     epoch_ends = [e[1] for e in epoch_tuples]
-    
     return [contact_matrices, epoch_ends]
 
-def _partition(date_ranges, evolution_length):
-    """Partition date_ranges into unique, non-overlapping epochs."""
-    
-    flat_dates = [v for sublist in date_ranges for v in sublist]
-    flat_dates = set(flat_dates + [0, evolution_length])
+def _partition(day_ranges, total_days):
+    """Partition day_ranges into unique, non-overlapping epochs."""
+    flat_dates = [v for sublist in day_ranges for v in sublist]
+    flat_dates = set(flat_dates + [0, total_days])
     epoch_delims = sorted(flat_dates)
 
     def _tuplize(lst):
