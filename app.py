@@ -11,9 +11,6 @@ TOTAL_POPULATION = 1e6 # in millions
 # Sidebar and the subsequent parameter definitions
 st.sidebar.markdown(
 	"""
-	## Parameters and assumptions
-	--------
-
 	**Initial conditions**
 	"""
 )
