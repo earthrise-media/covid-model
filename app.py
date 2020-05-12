@@ -2,7 +2,7 @@ import altair as alt
 import streamlit as st
 import numpy as np
 import pandas as pd
-#import shapely.geometry
+import shapely.geometry
 
 import model
 
@@ -20,8 +20,7 @@ st.sidebar.markdown(
 
 region_option = st.sidebar.selectbox(
 	'World Region', 
-	list(model.WORLD_POP.keys())#,
-	#index=(len(list(pop_lookup.keys()))-1)
+	list(model.WORLD_POP.keys())
 )
 
 initial_infected = st.sidebar.number_input(
@@ -58,15 +57,15 @@ indications of the directional effects of stacked policies.  The
 authors of this model and visualization are _not_ epidemiologists.  At
 best, we are armchair epidemiologists &mdash; which is pretty bad.
 
-We extended a standard SEIR model to incorporate the interactions
-between different population cohorts.  The cohorts are a partition of
-the population &mdash; a division into complete and non-overlapping
-groups. We use age-defined cohorts in this example, but other
-partitions could be used to explore differences in disease propagation
-and corresponding interventions in urban/rural or
+We extend a standard SEIR epidemiological model to incorporate the
+interactions between different population cohorts.  The cohorts are a
+partition of the population &mdash; a division into complete and
+non-overlapping groups. We use age-defined cohorts in this example,
+but other partitions could be used to explore differences in disease
+propagation and corresponding interventions in urban/rural or
 service/manufacturing/student groups.
 
-Our multidimensional generalization of the standard SEIR compartmental model
+Our multidimensional generalization of the SEIR compartmental model
 can be represented mathematically as follows:
 
 """)
@@ -91,7 +90,7 @@ st.write("""
 The subscripts (a,b) index the (age) cohorts, while alpha, beta, and
 gamma are the inverse incubation period, the probability of
 transmission given a contact between two people, and the inverse
-duration of infection, respectively. c_ab is a contact matrix,
+duration of infection, respectively. The matrix c_ab is the *contact matrix*,
 encoding the average number of daily contacts a person in cohort a has
 with people in cohort b. 
 
@@ -101,28 +100,30 @@ st.subheader('Initial conditions')
 
 st.write("""
 
-The number of people in each age cohort is part of the initial
-conditions for the model, as defined by **the selections in the
+The number of people in each age cohort is an initial
+condition for the model, as defined by **the selections in the
 sidebar**.  The proportions given here for **{}** reflect
 world-regional demographic data from the United Nations for for a
-hypothetical subset of the population of {} million people:
+hypothetical subset of {} million people:
 
 """.format(region_option, int(TOTAL_POPULATION/1e6)))
 
 df = pd.DataFrame(
-	population,
-	index=model.AGE_COHORTS
-).T
-
+	np.array(population).reshape(1,3),
+	columns=model.AGE_COHORTS,
+    index=["People in cohort"]
+)
 df["Total"] = df.sum(axis=1)
 
 st.dataframe(df.style.highlight_max(axis=1, color="#A9BEBE").format('{:.0f}'))
 
 st.write("""
 
-The initial conditions of the model for **%s** are then:
+The initial rate of infection is drawn from the sidebar at left. We assume
+also that a like number of people have been exposed. The initial 
+distribution of people among the various disease compartments is then:
 
-""" % region_option)
+""")
 
 display_pop_0 = pd.DataFrame(
 	pop_0,
@@ -136,9 +137,10 @@ st.subheader('An illustration of *Flattening the Curve*')
 
 st.write("""
 
-The simplest version of the model is a constant transmission matrix.  This is
-effectively the standard SEIR model, which has been widely used to show the
-benefits of acting early in a pandemic to 'flatten the curve.' 
+In the simplest version of the model, an intervention is applied evenly 
+across age cohorts.  As in a standard SEIR model, a strong intervention 
+early in the pandemic can be seen to 'flatten the curve.' The pandemic 
+resurges when the intervention is lifted.
 
 """)
 
@@ -174,15 +176,14 @@ st.write("""
 
 It is challenging to distinguish the effect of individual public
 health and social measures (PHSMs) on the rate of COVID-19
-transmission within a population (reproductive number R0);
-effectiveness depends on how fully communities adopt and adhere to
-PHSMs, additional interventions they are combined with, and other
-variables like family size and level of intergenerational contact
-within a community. Still, evidence does show that PHSMs are more
-effective when implemented in combination, or “stacked,” than when
-implemented individually. The following scenario illustrates this
-concept, when the PHSMs are tied to well-defined and stable partitions
-of the general population.
+transmission within a population.  Effectiveness depends on how fully
+communities adopt and adhere to PHSMs, additional interventions they
+are combined with, and other variables like family size and level of
+intergenerational contact within a community. Still, evidence does
+show that PHSMs are more effective when implemented in combination, or
+“stacked,” than when implemented individually. The following scenario
+illustrates this concept, when the PHSMs are tied to well-defined
+partitions of the general population.
 
 The input model parameters come with a high degree of uncertainty, and
 model outputs are unstable with respect to variations in these
@@ -210,11 +211,10 @@ npi_intervals = {
                   START_DAY, END_DAY, (70, 200))
 }
 
-st.write("""Alternatively, we can imagine a complete shutdown, where
+st.write("""Additionally, we can imagine a complete shutdown, where
 the entire population is required to **shelter in place**. This
-intervention encompasses and supersedes those above. For the duration
-of the shelter in place order the above interventions have no additional
-effect.""")
+intervention supersedes those above. For the duration of the shelter in place 
+order the above interventions have no additional effect.""")
 
 shelter_interval = st.slider('Shelter in place', START_DAY, END_DAY, (20, 20))
 
@@ -223,9 +223,10 @@ def _trim(interval, interval_to_excise):
     l2 = shapely.geometry.LineString([[x,0] for x in interval_to_excise])
     diff = l1.difference(l2)
     if type(diff) == shapely.geometry.linestring.LineString:
-        coords = [[x for x,_ in diff.coords]]
+        coords = [int(x) for x,_ in diff.coords]
+        coords = [coords] if coords else []
     elif type(diff) == shapely.geometry.multilinestring.MultiLineString:
-        coords = [[x for x,_ in segment.coords] for segment in diff.geoms]
+        coords = [[int(x) for x,_ in segment.coords] for segment in diff.geoms]
     return coords
 
 selected_npis, intervals = [], []
@@ -235,16 +236,13 @@ for k,v in npi_intervals.items():
         selected_npis.append(k)
         intervals.append(c)
             
-selected_npis.update({'Shelter in place': shelter_interval})
+selected_npis.append('Shelter in place')
+intervals.append(shelter_interval)
 
-# Debugging
-st.write(selected_npis)
-st.write(intervals)
-    
 contact_matrices, epoch_end_times = model.model_input(
     model.CONTACT_MATRICES_0[region_option],
-	selected_npis,
     intervals,
+	selected_npis,
     END_DAY-START_DAY)
 
 res = model.SEIRModel(contact_matrices, epoch_end_times)
@@ -264,8 +262,9 @@ st.markdown('Infections in **%s** (per million population)' % (region_option))
 st.altair_chart(chart, use_container_width=True)
 
 
-st.write("""Expected numbers of fatalities differ significantly with
-world region, because mortality rates are higher for aging populations.""")
+st.write("""Expected numbers of fatalities in the model vary
+significantly with world region, because mortality rates are higher
+for aging populations.""")
 
 # Calculate the aggregate deaths by cohort.  Position matters!!!  The
 # "Died or recovered" compartment is in the final position. Then,
@@ -284,9 +283,10 @@ st.write(display_df.style.highlight_max(axis=1, color="#e39696"))
 
 st.markdown(""" 
 
-> **Note**: These projections are more likely incorrect than correct.  Please
-be advised.  The objective is to visualize the patterns of infection and
-recovery &mdash; an interactive visualization of the differential equations
-that underlie the prevailing models.
+> **Note**: These tallies are not to be trusted as projections of
+deaths under real-world conditions. Please be advised.  The objective
+is to visualize the patterns of infection and recovery &mdash; an
+interactive visualization of the differential equations that underlie
+the prevailing models.
 
 """)
