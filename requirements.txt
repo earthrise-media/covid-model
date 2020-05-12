@@ -2,3 +2,4 @@ scipy
 streamlit
 numpy
 pandas
+shapely
