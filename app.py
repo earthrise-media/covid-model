@@ -31,7 +31,7 @@ initial_infected *= .01
 
 population = TOTAL_POPULATION * model.WORLD_POP[region_option]
 pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
-					   f * initial_infected, 0] for f in population])
+					   f * initial_infected, 0, 0, 0] for f in population])
 
 start_date = st.sidebar.number_input(
 	label='Start day (for visualization purposes only)',
@@ -253,8 +253,35 @@ chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
 		y=alt.Y('pop', axis=alt.Axis(title='Number infected'),
                 scale=alt.Scale(domain=(0,TOTAL_POPULATION/10))))
 
-
 st.markdown('Infections in **%s** (per million population)' % (region_option))
+
+st.altair_chart(chart, use_container_width=True)
+
+deaths = [x[res.d] for x in y]
+recovered = [x[res.r] for x in y]
+died_or_recovered = [[d_t + r_t for d_t,r_t in zip(d,r)]
+                         for d,r in zip(deaths, recovered)]
+deaths_old = [mr * np.array(DoR) for mr,DoR in zip(model.INFECTION_FATALITY,
+                                         died_or_recovered)]
+agg_deaths_old = np.sum(deaths_old, axis=0)
+
+agg_deaths = pd.DataFrame({
+    'days': list(range(len(deaths[0]))),
+    'Deaths': np.sum(deaths, axis=0),
+    'Deaths - old method': agg_deaths_old})
+agg_deaths = pd.melt(agg_deaths, id_vars=['days'], var_name='Group',
+                value_name='pop')
+
+#deaths = df[df["Group"] == "Dead"]
+
+chart = alt.Chart(agg_deaths[agg_deaths["days"] > start_date]).mark_line().encode(
+	#color="#0080FF").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Number of deaths'),
+                scale=alt.Scale(domain=(0,TOTAL_POPULATION/3e2))),
+        color='Group')
+
+st.markdown('Deaths in **%s** (per million population)' % (region_option))
 
 st.altair_chart(chart, use_container_width=True)
 
@@ -263,16 +290,18 @@ st.write("""Expected numbers of fatalities in the model vary
 significantly with world region, because mortality rates are higher
 for aging populations.""")
 
-# Calculate the aggregate deaths by cohort.  Position matters!!!  The
-# "Died or recovered" compartment is in the final position. Then,
-# also, collect the final number in the evolution, hence the dual "-1"
-# indices.
-final_died_or_recovered = [x[-1][-1] for x in y]
-deaths = np.multiply(final_died_or_recovered, model.INFECTION_FATALITY)
+# Old method: Take the final number of recovered and multiply by fatality rate
+final_recovered = [x[res.r][-1] for x in y]
+final_deaths = [x[res.d][-1] for x in y]
+final_died_or_recovered = [d + r for d,r in zip(final_deaths, final_recovered)]
+deaths_old_method = np.multiply(final_died_or_recovered,
+                                model.INFECTION_FATALITY)
 
-death_df = pd.DataFrame([deaths], columns = model.AGE_COHORTS,
-                        index=["Deaths (per million)"])
-death_df["Total"] = sum(deaths)
+death_df = pd.DataFrame([deaths_old_method, final_deaths],
+                            columns = model.AGE_COHORTS,
+                            index=["Deaths - old method",
+                                   "Deaths - new method"])
+death_df["Total"] = death_df.sum(axis=1)
 
 display_df = np.round(death_df).astype('int32')
 
