@@ -1,14 +1,17 @@
 """Code to build and solve an age-structured SEIR epidemiological model.
 
 Some model assumptions:
- - Four compartment (S-E-I-R) model, stratified by age cohorts (or any other 
-division of the population such that individuals do not switch cohorts). 
-Age is a discrete variable. See app.py or the deployed app for analytic 
+ - A basic compartmental (S-E-I-R) model, stratified by age cohorts 
+(or any other division of the population such that individuals do not switch 
+cohorts), and extended by comparments (SI-D) to account for those so 
+severely infected that they will end up dying from the disease. 
+ - Age is a discrete variable. See app.py or the deployed app for analytic 
 expression of the relevant differential equations. 
  - No aging: The time horizon for the model is less than one year.
  - No vital statistics: No birth or death, aside from possible deaths due to 
 disease.
  - The Exposed compartment are not infectious.
+
 
 """
 
@@ -16,7 +19,8 @@ import numpy as np
 import pandas as pd
 import scipy.integrate
 
-COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Died or recovered']
+COMPARTMENTS = ['Susceptible', 'Exposed', 'Infected', 'Severely Infected',
+                    'Recovered', 'Dead']
 
 AGE_COHORTS = ['0-19', '20-59', '60+']
 
@@ -77,10 +81,12 @@ class SEIRModel(object):
         alpha: Inverse incubation period
         beta: Probability of transmission given a contact
         gamma: Inverse duration of infection
+        delta: Inverse time to death
+        kappa: List of mortality rates, one per cohort
         N_cohorts: Number of cohorts 
         compartments: List of names of compartments
-        N_compartments: Number of compartments (hard-coded to 4: S-E-I-R)
-        s, e, i, r: Indices of the compartments in the state vector y(t). 
+        N_compartments: Number of compartments 
+        s, e, i, m, r, d: Indices of the compartments in the state vector y(t) 
 
     External methods: 
         f: Function giving the rate of change in the state variable y(t).
@@ -89,7 +95,9 @@ class SEIRModel(object):
     """
     def __init__(self, contact_matrices, epoch_end_times,
                      incubation_period=5.1, prob_of_transmission=.034,
-                     duration_of_infection=6.3, N_cohorts=len(AGE_COHORTS)):
+                     duration_of_infection=6.3, time_to_death=17.8,
+                     mortality_rates=INFECTION_FATALITY,
+                     N_cohorts=len(AGE_COHORTS)):
         
         if len(epoch_end_times) != len(contact_matrices):
             raise ValueError('Each contact matrix requires an epoch end time.')
@@ -98,13 +106,14 @@ class SEIRModel(object):
         self.alpha = 1/incubation_period
         self.beta = prob_of_transmission
         self.gamma = 1/duration_of_infection
+        self.delta = 1/time_to_death
+        self.kappa = mortality_rates
         self.N_cohorts = N_cohorts
 		
-        # N.B. hard-coded values. The function f() assumes these four
-        # compartments.
+        # N.B. hard-coded values. The function f() assumes these compartments.
         self.compartments = COMPARTMENTS
-        self.N_compartments = 4
-        self.s, self.e, self.i, self.r = list(range(4))                  
+        self.N_compartments = 6
+        self.s, self.e, self.i, self.m, self.r, self.d = list(range(6))
 													   
     def _fetch_contact(self, t):
         """Fetch the contact matrix for given time t."""
@@ -119,13 +128,17 @@ class SEIRModel(object):
         contact = self._fetch_contact(t)
         for a in range(self.N_cohorts):
             infection_rate = np.sum([
-                self.beta * contact[a,b] * y[b,self.i] / np.sum(y[b,:])
-                    for b in range(self.N_cohorts)])
+                self.beta * contact[a,b] * (y[b,self.i] + y[b,self.m]) /
+                    np.sum(y[b,:]) for b in range(self.N_cohorts)])
             dy[a,self.s] = -y[a,self.s] * infection_rate
-            dy[a,self.e] = (y[a,self.s] * infection_rate
-                                - self.alpha * y[a, self.e])
-            dy[a,self.i] = self.alpha * y[a, self.e] - self.gamma * y[a, self.i]
-            dy[a,self.r] = self.gamma * y[a, self.i]
+            dy[a,self.e] = (y[a,self.s] * infection_rate - 
+                            self.alpha * y[a, self.e])
+            dy[a,self.i] = (self.alpha * (1-self.kappa[a]) * y[a, self.e] -
+                            self.gamma * y[a, self.i])
+            dy[a,self.m] = (self.alpha * self.kappa[a] * y[a, self.e] -
+                            self.delta * y[a, self.m])            
+            dy[a,self.r] = self.gamma  * y[a, self.i]
+            dy[a,self.d] = self.delta * y[a, self.m]
         return dy.flatten()
 	
     def solve(self, y0):

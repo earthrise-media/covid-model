@@ -31,7 +31,7 @@ initial_infected *= .01
 
 population = TOTAL_POPULATION * model.WORLD_POP[region_option]
 pop_0 = np.array([[f * (1 - 2 * initial_infected), f * initial_infected,
-					   f * initial_infected, 0] for f in population])
+					   f * initial_infected, 0, 0, 0] for f in population])
 
 start_date = st.sidebar.number_input(
 	label='Start day (for visualization purposes only)',
@@ -60,7 +60,9 @@ partition of the population &mdash; a division into complete and
 non-overlapping groups. We use age-defined cohorts in this example,
 but other partitions could be used to explore differences in disease
 propagation and corresponding interventions in urban/rural or
-service/manufacturing/student groups.
+service/manufacturing/student groups. Additionally, those people
+severely or *mortally* infected (M), who will end up dying (D), are
+tracked in separate comparments.
 
 Our multidimensional generalization of the SEIR compartmental model
 can be represented mathematically as follows:
@@ -69,13 +71,17 @@ can be represented mathematically as follows:
 
 eqnarray = r"""
 	\begin{array}{lll}
-		\frac{dS_a}{dt} &=& - S_a\; \sum_b \beta c_{ab}(t) I_b/ N_b \\
+		\frac{dS_a}{dt} &=& - S_a\; \sum_b \beta c_{ab}(t) (I_b + M_b)/ N_b \\
 		\\
-		\frac{dE_a}{dt} &=& S_a\; \sum_b \beta c_{ab}(t) I_b/ N_b - \alpha E_a\\
+		\frac{dE_a}{dt} &=& S_a\; \sum_b \beta c_{ab}(t) (I_b + M_b)/ N_b - \alpha E_a\\
 		\\
-		\frac{dI_a}{dt} &=& \alpha E_a - \gamma I_a\\
+		\frac{dI_a}{dt} &=& \alpha (1-\kappa_a) E_a - \gamma I_a\\
 		\\
+        \frac{dM_a}{dt} &=& \alpha \kappa_a E_a - \delta M_a\\
+        \\
 		\frac{dR_a}{dt} &=& \gamma I_a \\
+        \\
+        \frac{dD_a}{dt} &=& \delta M_a\\
 
 	\end{array}{}
 """
@@ -84,12 +90,13 @@ st.latex(eqnarray)
 
 st.write("""
 
-The subscripts (a,b) index the (age) cohorts, while alpha, beta, and
-gamma are the inverse incubation period, the probability of
-transmission given a contact between two people, and the inverse
-duration of infection, respectively. The matrix c_ab is the *contact matrix*,
-encoding the average number of daily contacts a person in cohort a has
-with people in cohort b. 
+The subscripts (a,b) index the (age) cohorts, while alpha, beta,
+gamma, and delta are the inverse incubation period, the probability of
+transmission given a contact between two people, the inverse duration
+of infection, and the inverse time to death, respectively. The matrix
+c_ab is the *contact matrix*, encoding the average number of daily
+contacts a person in cohort a has with people in cohort b. The vector
+kappa_a encodes the infection fatality rates for each cohort.
 
 """)  
 
@@ -253,8 +260,19 @@ chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
 		y=alt.Y('pop', axis=alt.Axis(title='Number infected'),
                 scale=alt.Scale(domain=(0,TOTAL_POPULATION/10))))
 
-
 st.markdown('Infections in **%s** (per million population)' % (region_option))
+
+st.altair_chart(chart, use_container_width=True)
+
+deaths = df[df["Group"] == "Dead"]
+
+chart = alt.Chart(deaths[deaths["days"] > start_date]).mark_line(
+    color="#0080FF").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('pop', axis=alt.Axis(title='Number of deaths'),
+                scale=alt.Scale(domain=(0,TOTAL_POPULATION/1e2))))
+
+st.markdown('Deaths in **%s** (per million population)' % (region_option))
 
 st.altair_chart(chart, use_container_width=True)
 
@@ -263,16 +281,11 @@ st.write("""Expected numbers of fatalities in the model vary
 significantly with world region, because mortality rates are higher
 for aging populations.""")
 
-# Calculate the aggregate deaths by cohort.  Position matters!!!  The
-# "Died or recovered" compartment is in the final position. Then,
-# also, collect the final number in the evolution, hence the dual "-1"
-# indices.
-final_died_or_recovered = [x[-1][-1] for x in y]
-deaths = np.multiply(final_died_or_recovered, model.INFECTION_FATALITY)
-
-death_df = pd.DataFrame([deaths], columns = model.AGE_COHORTS,
-                        index=["Deaths (per million)"])
-death_df["Total"] = sum(deaths)
+final_deaths = [x[res.d][-1] for x in y]
+death_df = pd.DataFrame([final_deaths],
+                            columns = model.AGE_COHORTS,
+                            index=["Deaths"])
+death_df["Total"] = death_df.sum(axis=1)
 
 display_df = np.round(death_df).astype('int32')
 
