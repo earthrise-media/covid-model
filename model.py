@@ -3,8 +3,8 @@
 Some model assumptions:
  - A basic compartmental (S-E-I-R) model, stratified by age cohorts 
 (or any other division of the population such that individuals do not switch 
-cohorts), and extended by comparments (SI-D) to account for those so 
-severely infected that they will end up dying from the disease. 
+cohorts) and extended by comparments (M-D) to account for those so 
+severely (mortally) infected that they will end up dying from the disease. 
  - Age is a discrete variable. See app.py or the deployed app for analytic 
 expression of the relevant differential equations. 
  - No aging: The time horizon for the model is less than one year.
