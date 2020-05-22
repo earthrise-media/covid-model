@@ -112,8 +112,9 @@ class SEIRModel(object):
 		
         # N.B. hard-coded values. The function f() assumes these compartments.
         self.compartments = COMPARTMENTS
-        self.N_compartments = 6
-        self.s, self.e, self.i, self.m, self.r, self.d = list(range(6))
+        self.N_compartments = len(COMPARTMENTS)
+        self.s, self.e, self.i, self.m, self.r, self.d = list(
+            range(len(COMPARTMENTS)))
 													   
     def _fetch_contact(self, t):
         """Fetch the contact matrix for given time t."""
