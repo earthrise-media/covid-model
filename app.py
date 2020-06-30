@@ -148,7 +148,7 @@ resurges when the intervention is lifted.
 
 """)
 
-START_DAY, END_DAY = 0, 300
+START_DAY, END_DAY = 0, 180
 
 mixing_range = st.slider(
 	'Period of shelter-in-place for whole population',
@@ -203,16 +203,16 @@ on the chart.
 
 npi_intervals = {
     'School closure':
-        st.slider('Schools closed', START_DAY, END_DAY, (30, 70)),
+        st.slider('Schools closed', START_DAY, END_DAY, (21, 120)),
     'Cancel mass gatherings':
         st.slider('Cancellation of mass gatherings',
-                  START_DAY, END_DAY, (30, 80)),
+                  START_DAY, END_DAY, (21, 90)),
     'Shielding the elderly':
         st.slider('Shielding the elderly',
-                  START_DAY, END_DAY, (30, 100)),
+                  START_DAY, END_DAY, (21, 120)),
     'Quarantine and tracing':
         st.slider('Self-isolation, quarantine, and contact tracing',
-                  START_DAY, END_DAY, (70, 200))
+                  START_DAY, END_DAY, (90, 180))
 }
 
 st.write("""Additionally, we can imagine a complete shutdown, where
@@ -220,7 +220,7 @@ the entire population is required to **shelter in place**. This
 intervention supersedes those above. For the duration of the shelter in place 
 order the above interventions have no additional effect.""")
 
-shelter_interval = st.slider('Shelter in place', START_DAY, END_DAY, (20, 20))
+shelter_interval = st.slider('Shelter in place', START_DAY, END_DAY, (21, 90))
 
 def _trim(interval, interval_to_excise):
     l1 = shapely.geometry.LineString([[x,0] for x in interval])
