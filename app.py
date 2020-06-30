@@ -174,6 +174,62 @@ chart = alt.Chart(infected[infected["days"] > start_date]).mark_line(
 
 st.altair_chart(chart, use_container_width=True)
 
+# Rough code to compute Rt based on secondary infections; ref Cori 
+
+def newinf(df, t):
+    inf = df[df.Group == 'Infected']['pop'].tolist()
+    rec = df[df.Group == 'Recovered']['pop'].tolist()
+    if t == 0:
+        newinf = inf[t] + rec[t]
+    else:
+        newinf = (inf[t] - inf[t-1]) + (rec[t] - rec[t-1])
+    return newinf
+    
+infected['newinf'] = df.apply(lambda row: newinf(df, row['days']), axis=1)
+
+# Infectivity function
+def w(s, duration=int(1/res.gamma), incubation=int(1/res.alpha)):
+    return 1/duration if incubation < s <= incubation + duration else 0
+
+def Lambda(df, t):
+    newinf = df['newinf'].tolist()
+    return np.sum([newinf[t-s]*w(s) if t-s >=0 else 0 for s in range(1, t+1)])
+
+def Rttau(df, t, tau=5, a=1, b=5):
+    newinf = df['newinf'].tolist()
+    lambdas = df['Lambda'].tolist()
+    num = a + np.sum([newinf[s] if s >=0 else 0 for s in range(t-tau+1, t+1)])
+    denom = 1/b + np.sum([lambdas[s] if s >=0 else 0
+                              for s in range(t-tau+1, t+1)])
+    return num/denom
+
+infected['Lambda'] = infected.apply(lambda row: Lambda(infected, row['days']),
+                                    axis=1)
+infected['Rtau5'] = infected.apply(lambda row: Rttau(infected, row['days'],
+                                                    tau=5),
+                                   axis=1)
+infected['Rtau1'] = infected.apply(lambda row: Rttau(infected, row['days'],
+                                                     tau=1),
+                                   axis=1)
+
+chart = alt.Chart(infected[infected["days"] > 11]).mark_line(
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('Rtau1', axis=alt.Axis(title='R (instantaneous)'),
+                scale=alt.Scale(domain=(0,5))))
+
+st.altair_chart(chart, use_container_width=True)
+
+chart = alt.Chart(infected[infected["days"] > 16]).mark_line(
+	color="#e45756").encode(
+		x=alt.X('days', axis=alt.Axis(title='Days')),
+		y=alt.Y('Rtau5', axis=alt.Axis(title='R (5-day moving avg)'),
+                scale=alt.Scale(domain=(0,5))))
+
+st.altair_chart(chart, use_container_width=True)
+
+# End rough Rt computations
+
 st.subheader('Stacking NPIs: An illustration.')
 
 st.write("""
