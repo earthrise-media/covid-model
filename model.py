@@ -55,18 +55,21 @@ CONTACT_MATRICES_0 = {
 
 # The effects of various non-pharmaceutical interventions.
 # Chi denotes an overall multiplicative factor on the basic contact matrix.
-# For cohort-based interventions, xi denotes a factor to be applied to
-# contact matrix entries given by the corresponding indices.
+# Cohort_chi gives multiplicative factors for each entry of a contact matrix.
 NPI_IMPACTS = {
     'Cancel mass gatherings': {'chi': 0.72},
     'Quarantine': {'chi': 0.63},
     'Quarantine and tracing': {'chi': 0.48},
     'School closure': {
-        'xi': 0, 'indices': [(0, 0)]
+        'cohort_chi': [[.25, .8, 1.52],
+                       [.8, .74, 1],
+                       [1.52, 1, 1]]
     },
     'Shelter in place': {'chi': 0.34},
     'Shielding the elderly': {
-        'xi': 0.5, 'indices': [(0, -1), (1, -1), (-1, 0), (-1, 1),  (-1, -1)]
+        'cohort_chi': [[1, 1, .5],
+                       [1, 1, .5],
+                       [.5, .5, .5]]
     }
 }
 
@@ -193,8 +196,7 @@ def model_input(contact_matrix, day_ranges, selected_npis, total_days,
     def _apply(npi, npi_impacts, contact_matrix):
         impact = npi_impacts.get(npi, {})
         contact_matrix *= impact.get('chi', 1)
-        for idx_pair in impact.get('indices', []):
-            contact_matrix[idx_pair] *= impact.get('xi', 1)
+        contact_matrix *= impact.get('cohort_chi', 1)
         return contact_matrix
 
     epoch_tuples = _partition(day_ranges, total_days)
